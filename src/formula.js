@@ -1,4 +1,4 @@
-var Formula = (function (Address, Value) {
+var Formula = (function (Address, Value, Functions) {
   var ERROR_TEXTS = ['#DIV/0!', '#NAME?', '#REF!', '#VALUE!', '#CIRC!', '#ERROR!'];
   var NUMBER_RE = /^(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?/;
   var FUNC_RE = /^([A-Za-z][A-Za-z0-9_.]*)\(/;
@@ -252,13 +252,27 @@ var Formula = (function (Address, Value) {
       return Value.number(node.op === '-' ? -n.value : n.value);
     }
     if (node.type === 'binary') return evalBinary(node, ctx);
-    return Value.ERR_NAME;
+    return evalCall(node, ctx);
+  }
+
+  function argKind(arg) {
+    return arg.type === 'range' || arg.type === 'ref' ? arg.type : 'value';
+  }
+
+  function evalCall(node, ctx) {
+    return Functions.call(node.name, node.args.map(argKind), function (i) {
+      var arg = node.args[i];
+      if (arg.type !== 'range') return evaluate(arg, ctx);
+      if (!arg.range.valid) return Value.ERR_REF;
+      return Address.rangeAddresses(arg.range).map(function (addr) { return ctx.get(addr); });
+    });
   }
 
   return { parse: parse, evaluate: evaluate };
 })(
   typeof module !== 'undefined' ? require('./address.js') : Address,
-  typeof module !== 'undefined' ? require('./value.js') : Value
+  typeof module !== 'undefined' ? require('./value.js') : Value,
+  typeof module !== 'undefined' ? require('./functions.js') : Functions
 );
 
 if (typeof module !== 'undefined') module.exports = Formula;
