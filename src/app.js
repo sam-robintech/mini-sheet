@@ -279,6 +279,24 @@ var App = (function () {
     }
   }
 
+  // 보이는 값으로 CSV 를 만들어 sheet.csv 로 내려받는다(D14).
+  function downloadCsv() {
+    var map = {};
+    sheet.entries().forEach(function (entry) {
+      map[entry[0]] = sheet.getDisplay(entry[0]);
+    });
+    var blob = new Blob([Csv.build(map)], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'sheet.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+    editor.focus({ preventScroll: true });
+  }
+
   function start() {
     wrap = document.getElementById('grid-wrap');
     nameBox = document.getElementById('name-box');
@@ -295,6 +313,7 @@ var App = (function () {
     editor.addEventListener('compositionstart', onEditorInput);
     editor.addEventListener('input', onEditorInput);
     editor.addEventListener('keydown', onEditorKeydown);
+    document.getElementById('download-csv').addEventListener('click', downloadCsv);
     editor.value = '';
     showActive();
   }
