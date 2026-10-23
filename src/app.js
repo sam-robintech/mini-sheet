@@ -130,6 +130,7 @@ var App = (function () {
       if (changed.indexOf(item.addr) < 0) changed.push(item.addr);
     });
     changed.forEach(renderCell);
+    Storage.save(localStorage, sheet.entries());
     return step;
   }
 
@@ -285,6 +286,9 @@ var App = (function () {
     editor = document.getElementById('cell-editor');
     var table = document.getElementById('grid');
     buildGrid(table);
+    // 저장한 원문을 넣고 전체를 다시 계산해 그린다. 읽지 못하면 빈 표다(D14).
+    var saved = Storage.load(localStorage);
+    sheet.loadAll(saved).concat(Object.keys(saved)).forEach(renderCell);
     table.addEventListener('mousedown', onGridMousedown);
     table.addEventListener('dblclick', onGridDblclick);
     formulaInput.addEventListener('keydown', onFormulaKeydown);
