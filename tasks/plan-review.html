@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>설계 리뷰: 미니 스프레드시트</title>
+<style>
+  body { margin: 0; font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color: #1f2328; background: #f6f7f9; line-height: 1.6; }
+  main { max-width: 1320px; margin: 0 auto; padding: 24px 28px 64px; }
+  h1 { font-size: 26px; margin: 8px 0 4px; }
+  h2 { font-size: 20px; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #d0d7de; }
+  .sub { color: #57606a; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 16px 18px; }
+  #diagram-wrap { position: relative; }
+  svg { width: 100%; height: auto; display: block; }
+  .box rect { stroke: #24292f; stroke-width: 1.2; rx: 6; cursor: pointer; }
+  .box text { font: 600 14px ui-monospace, Menlo, Consolas, monospace; fill: #111; pointer-events: none; }
+  .box .file { font: 11px ui-monospace, Menlo, Consolas, monospace; fill: #333; }
+  .edge { fill: none; stroke: #8c959f; stroke-width: 1.4; marker-end: url(#arrow); }
+  .edge.hl { stroke: #cf222e; stroke-width: 2.6; marker-end: url(#arrow-hl); }
+  .box.dim rect { opacity: .35; }
+  .layer-label { font: 600 12px ui-monospace, Menlo, monospace; fill: #57606a; }
+  #tip { position: absolute; display: none; max-width: 420px; background: #fff; border: 1px solid #8c959f; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.15); padding: 10px 12px; font-size: 13px; pointer-events: none; z-index: 5; }
+  #tip b { display: block; margin-bottom: 4px; }
+  #tip .tags { margin-top: 6px; color: #57606a; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 16px; height: 12px; border: 1px solid #24292f; border-radius: 3px; display: inline-block; }
+  .note { font-size: 13px; color: #57606a; margin-top: 6px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; font-size: 14px; }
+  th, td { border: 1px solid #d0d7de; padding: 7px 10px; vertical-align: top; text-align: left; }
+  th { background: #eef1f4; white-space: nowrap; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; background: #eff1f3; padding: 1px 4px; border-radius: 4px; }
+  ul { margin: 6px 0; }
+  .pass { color: #1a7f37; font-weight: 700; }
+  .fail { color: #cf222e; font-weight: 700; }
+  .imp-상 { color: #cf222e; font-weight: 700; } .imp-중 { color: #9a6700; font-weight: 700; } .imp-하 { color: #57606a; font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+<h1>설계: 미니 스프레드시트</h1>
+<p class="sub">원본: <code>tasks/plan.md</code> · 입력: <code>SPEC.md</code></p>
+
+<h2>아키텍처 다이어그램</h2>
+<div class="card" id="diagram-wrap">
+<svg id="diagram" viewBox="0 0 1260 650" role="img" aria-label="component dependency diagram">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8c959f"/></marker>
+    <marker id="arrow-hl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#cf222e"/></marker>
+  </defs>
+  <g id="labels">
+    <text class="layer-label" x="8" y="58">L5</text>
+    <text class="layer-label" x="8" y="148">L4</text>
+    <text class="layer-label" x="8" y="258">L3</text>
+    <text class="layer-label" x="8" y="368">L2</text>
+    <text class="layer-label" x="8" y="478">L1</text>
+    <text class="layer-label" x="8" y="588">L0</text>
+  </g>
+  <g id="edges"></g>
+  <g id="boxes"></g>
+</svg>
+<div id="tip"></div>
+<div class="legend" id="legend"></div>
+<p class="note">화살표는 "의존한다" 방향이다(A → B: A 가 B 에 기댄다). 층은 의존 깊이다. 상자에 마우스를 올리면 책임과 관련 결정(D)·위험(R)이 보이고, 그 상자의 화살표가 붉게 표시된다.</p>
+</div>
+
+<h2>개요</h2>
+<div class="card">
+<p><code>index.html</code> 하나를 file:// 로 열어 쓰는 26열×100행 계산표를 만든다. 칸의 원문을 숫자·문자열·수식·빈 칸으로 읽고, 수식은 직접 만든 토큰 분석기·구문 분석기·계산기로 계산한다(<code>eval</code> 없음). 표 모듈이 칸 사이의 의존 그래프를 들고 있어 바뀐 칸에 기대는 칸만 순서대로 다시 계산하고 순환은 <code>#CIRC!</code> 로 표시한다. 칸 고르기, 되돌리기, 복사·붙여 넣기, 저장, CSV 만들기는 각각 DOM 을 모르는 규칙 모듈이 계산하고, <code>src/app.js</code> 하나가 DOM·키보드·마우스·localStorage·내려받기를 이 모듈들에 잇는다. 규칙 모듈은 <code>node:test</code> 단위 테스트로, 화면 동작은 Playwright e2e 로 확인한다.</p>
+</div>
+
+<h2>기존 코드 파악</h2>
+<div class="card">
+<ul>
+<li>새 프로젝트다. 저장소에는 <code>idea.md</code>, <code>spec-standard.md</code>, <code>SPEC.md</code>, <code>.gitignore</code> 만 있고 <code>src/</code>, <code>tests/</code>, <code>e2e/</code>, <code>package.json</code> 은 아직 없다.</li>
+<li>따를 관례는 <code>SPEC.md</code> 의 작업 환경과 <code>spec-standard.md</code> 에서 온다.
+  <ul>
+  <li>브라우저 전역 스크립트(ES2020). 파일마다 IIFE 로 감싸 전역 객체 하나만 내고(<code>Address</code>, <code>Value</code>, ...), 끝에서 <code>if (typeof module !== 'undefined') module.exports = ...</code> 로 내보낸다.</li>
+  <li><code>index.html</code> 의 스크립트 순서는 address → value → functions → formula → sheet → selection → history → clipboard → storage → csv → app 으로 고정이다. 의존은 앞에 읽는 파일로만 향해야 한다.</li>
+  <li>들여쓰기 2칸, 작은따옴표, 세미콜론. 함수·변수는 카멜, 상수는 대문자 밑줄, 오류 값 상수는 <code>ERR_</code> 로 시작. 칸 주소 문자열은 늘 대문자.</li>
+  <li>단위 테스트는 <code>tests/&lt;모듈&gt;.test.js</code>, e2e 는 <code>e2e/&lt;기능&gt;.spec.js</code>. 테스트 이름은 영어 문장.</li>
+  <li>e2e 가 찾는 고리: <code>[data-cell="A1"]</code>, <code>.active</code>, <code>.selected</code>, <code>#name-box</code>, <code>#formula-input</code>, <code>#cell-editor</code>, <code>#download-csv</code>.</li>
+  </ul></li>
+<li><code>.gitignore</code> 에 <code>node_modules/</code>, <code>test-results/</code>, <code>playwright-report/</code> 가 이미 있다.</li>
+</ul>
+</div>
+
+<h2>구성 요소</h2>
+<table id="comp-table">
+<thead><tr><th>번호</th><th>이름</th><th>책임</th><th>의존</th><th>맡는 성공 기준</th></tr></thead>
+<tbody></tbody>
+</table>
+<p class="note">테스트 도구(<code>package.json</code>, <code>playwright.config.js</code>, <code>tests/</code>, <code>e2e/</code>)는 앱 구성 요소가 아니므로 표에 넣지 않고 D12 로 정한다.</p>
+
+<h2>아키텍처 결정</h2>
+<table>
+<thead><tr><th>번호</th><th>결정</th><th>이유</th></tr></thead>
+<tbody>
+<tr><td>D1</td><td>모듈 꼴: 파일마다 <code>var X = (function () { ... })();</code> 와 끝의 <code>if (typeof module !== 'undefined') module.exports = X;</code>. 다른 모듈은 IIFE 맨 위에서 <code>var Value_ = typeof module !== 'undefined' ? require('./value.js') : Value;</code> 꼴로 얻는다. 의존은 <code>index.html</code> 에서 앞에 읽는 파일로만 향한다(C1~C12 의존 표가 이를 지킨다).</td><td>SPEC 작업 환경(전역 스크립트, ES 모듈 금지)과 Node <code>require</code> 단위 테스트를 함께 만족한다. 고정 스크립트 순서와 의존 방향을 맞춰 순환을 막는다.</td></tr>
+<tr><td>D2</td><td>DOM·localStorage·Blob·<code>document</code> 는 C11 App 만 만진다. C1~C10 은 입력→출력만 하는 순수 규칙 모듈이다. C9 Storage 는 <code>getItem</code>/<code>setItem</code> 을 가진 저장소 객체를 인자로 받는다.</td><td>커버리지 90% 대상이 <code>src/app.js</code> 를 뺀 전부이고, 단위 테스트가 DOM 없이 돌아야 한다(SPEC 검증 수단).</td></tr>
+<tr><td>D3</td><td>칸 값 모양(C2·C3·C4·C5·C10 이 공유): <code>{ type: 'empty' }</code>, <code>{ type: 'number', value: n }</code>, <code>{ type: 'string', value: s }</code>, <code>{ type: 'bool', value: b }</code>, <code>{ type: 'error', value: '#DIV/0!' }</code>. 오류 값 상수는 <code>Value.ERR_DIV0</code>, <code>ERR_NAME</code>, <code>ERR_REF</code>, <code>ERR_VALUE</code>, <code>ERR_CIRC</code>, <code>ERR_SYNTAX</code>(<code>#ERROR!</code>). 바꾸기 함수 <code>Value.toNumber(v)</code> 는 빈 칸 0, 참 1, 거짓 0, 숫자로 읽히지 않는 문자열은 <code>#VALUE!</code> 오류 값을 돌려준다. <code>Value.toText(v)</code> 는 빈 칸 <code>''</code>.</td><td>다섯 모듈이 같은 값을 주고받는다. 오류를 예외가 아닌 값으로 다뤄 G4 전파를 단순한 "첫 오류 반환" 규칙으로 만든다.</td></tr>
+<tr><td>D4</td><td>원문 해석 <code>Value.parseRaw(raw)</code> → <code>{ kind: 'empty'|'number'|'string'|'formula', value }</code>. 숫자는 앞뒤 공백을 뺀 글자가 <code>/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/</code> 에 맞을 때만(<code>12a</code> 는 문자열). 보이는 글자 <code>Value.display(v)</code>: 숫자는 <code>String(Number(n.toPrecision(15)))</code>, 참/거짓은 <code>TRUE</code>/<code>FALSE</code>, 오류는 그 글자, 빈 칸은 <code>''</code>. 정렬 종류 <code>Value.align(v)</code> 는 숫자만 <code>right</code>, 나머지 <code>left</code>.</td><td>G2·G10·AC5·AC21 을 한곳에서 정해 C10 Csv 와 C11 App 이 같은 글자를 쓰게 한다.</td></tr>
+<tr><td>D5</td><td>C4 Formula 공개 API: <code>parse(text)</code> → <code>{ ast, refs }</code> 또는 문법이 틀리면 <code>{ error: '#ERROR!' }</code>. <code>refs</code> 는 의존할 주소 문자열 목록(범위는 펼친 주소, 표 밖 참조는 넣지 않음). <code>evaluate(ast, ctx)</code> → 칸 값(D3). <code>ctx.get(addr)</code> 이 칸 값을 준다. <code>shift(text, dCol, dRow)</code> → 옮긴 수식 원문. 토큰: 숫자, 큰따옴표 문자열(<code>""</code> 는 따옴표 하나), 참조(<code>$?[A-Za-z]+$?\d+</code>), <code>:</code>, 함수 이름+<code>(</code>, <code>,</code>, 연산자, 괄호, 오류 글자(<code>#REF!</code> 등 여섯 개). AST 노드: <code>num</code>, <code>str</code>, <code>err</code>, <code>ref</code>, <code>range</code>, <code>unary</code>, <code>binary</code>, <code>call</code>.</td><td>C5 Sheet 와 C8 Clipboard 가 함께 쓰는 계약이다. AC16 의 <code>=#REF!</code> 가 다시 읽혀 <code>#REF!</code> 값을 내려면 오류 글자가 토큰이어야 한다.</td></tr>
+<tr><td>D6</td><td>우선순위는 낮은 것부터 비교(<code>= &lt;&gt; &lt; &gt; &lt;= &gt;=</code>) &lt; <code>&amp;</code> &lt; <code>+ -</code> &lt; <code>* /</code> &lt; <code>^</code> &lt; 단항 <code>- +</code>. 이항 연산은 모두 왼쪽부터 묶는다(<code>^</code> 포함). 단항은 <code>^</code> 보다 먼저 묶으므로 <code>=-2^2</code> 는 <code>(-2)^2 = 4</code>. 계산 결과가 <code>Infinity</code>/<code>NaN</code> 이면 <code>#VALUE!</code>, 나눗수가 0 이면 <code>#DIV/0!</code>. 종류가 다른 값의 비교는 Q1 의 가정을 따른다.</td><td>G6·AC9 을 그대로 옮긴 것이다. 재귀 하강 파서의 단계 순서로 구현한다.</td></tr>
+<tr><td>D7</td><td>오류 전파 순서: 이항 연산은 왼쪽 피연산자 오류를 먼저, 그다음 오른쪽 오류를 돌려준다. 함수는 인자를 왼쪽부터 보고 처음 만난 오류를 돌려준다. 범위 안의 오류도 G4 대로 그대로 돌려준다. 표 밖 참조(<code>AA1</code>, <code>A101</code>)는 파싱에 성공하고 계산 때 <code>#REF!</code>. 없는 함수는 파싱에 성공하고 계산 때 <code>#NAME?</code>. <code>IF</code> 는 조건을 먼저 계산하고 고른 쪽 인자만 계산한다(엑셀과 같음).</td><td>여러 오류가 섞일 때 결과를 하나로 정해야 테스트 기대 값이 정해진다. IF 의 고르지 않은 쪽 오류는 퍼지지 않는다(가정, Q2 참고).</td></tr>
+<tr><td>D8</td><td>C3 Functions API: <code>Functions.call(name, args, evalArg)</code>. 인자는 미리 계산하지 않고 <code>{ kind: 'value', value }</code> 또는 <code>{ kind: 'range', values: [...] }</code> 로 넘기거나, IF 는 <code>evalArg(i)</code> 로 필요한 인자만 계산한다. 범위 안의 문자열·빈 칸·참/거짓은 건너뛰고, 인자로 직접 준 문자열은 <code>#VALUE!</code>(G8). ROUND 는 <code>x * 10^d</code> 를 <code>toPrecision(15)</code> 로 정리한 뒤 부호를 떼고 <code>Math.floor(|y| + 0.5)</code> 를 하고 부호를 다시 붙여 <code>10^d</code> 로 나눈다.</td><td>G8 의 "범위 안"과 "직접 준 인자"를 구별하려면 인자가 범위였는지 알아야 한다. ROUND 규칙은 G8 의 2.345 예를 지키는 방법이다.</td></tr>
+<tr><td>D9</td><td>C5 Sheet API: <code>Sheet.create()</code> → <code>{ setRaw(addr, raw) → 값이 바뀐 주소 목록, setMany([{addr, raw}]) → 같음, getRaw(addr), getValue(addr), getDisplay(addr), entries() → 원문이 있는 [addr, raw] 목록, loadAll(cellsMap), evalCount }</code>. <code>evalCount</code> 는 수식 계산 횟수 누적 값이고 테스트에서 읽는다. 다시 계산은 바뀐 칸들에서 역방향 그래프를 따라 기대는 칸 집합을 모으고, 그 부분 그래프에서 Tarjan 강한 연결 요소를 찾아 크기 2 이상이거나 자기 참조인 요소의 칸을 <code>#CIRC!</code> 로 두고, 나머지는 위상 순서로 한 번씩 계산한다. 순환 칸에 기대는 칸은 계산하면서 G4 로 <code>#CIRC!</code> 를 받는다.</td><td>AC15 의 "계산 횟수 확인"이 공개 계약이어야 한다. 순환 안의 칸과 순환 아래의 칸을 구별해야 IF 같은 경우에 값이 맞다(D7). 순환을 끊으면 같은 절차로 제 값이 돌아온다(G17).</td></tr>
+<tr><td>D10</td><td>C6 Selection 상태: <code>{ active: {col,row}, focus: {col,row} }</code>, 고른 범위는 두 칸이 이루는 사각형. <code>move(state, dir)</code> 는 범위를 활성 칸 하나로 접고 옮긴다(Enter=down, Shift+Enter=up, Tab=right, Shift+Tab=left 도 같은 함수). <code>extend(state, dir)</code> 는 <code>focus</code> 만 옮긴다. <code>extendTo(state, cell)</code> 은 Shift+클릭. <code>select(cell)</code>. <code>rangeText(state)</code> 는 한 칸이면 <code>A1</code>, 범위면 <code>A1:B3</code>. 모두 표 끝에서 멈춘다.</td><td>G11·AC3·AC4 를 DOM 없이 시험한다.</td></tr>
+<tr><td>D11</td><td>C7 History: <code>History.create(limit = 100)</code> → <code>{ push(step), undo() → step|null, redo() → step|null, canUndo, canRedo }</code>. 단계는 <code>[{ addr, before, after }]</code> 이고 before 와 after 가 모두 같으면 쌓지 않는다. C11 App 은 확정 한 번·지우기 한 번·붙여 넣기 한 번을 한 단계로 만들고, undo 는 <code>before</code> 를, redo 는 <code>after</code> 를 C5 <code>setMany</code> 로 넣는다. C8 Clipboard 는 <code>copy(getRaw, range)</code> → <code>{ rows, cols, origin, raws }</code>, <code>paste(clip, target)</code> → <code>[{ addr, raw }]</code> 를 돌려줄 뿐 표를 바꾸지 않는다.</td><td>표를 바꾸는 길을 C11 App → C5 Sheet 하나로 모아 되돌리기·저장·화면 갱신이 늘 같이 일어나게 한다.</td></tr>
+<tr><td>D12</td><td>기술 스택은 SPEC 작업 환경 그대로다: HTML·CSS·JavaScript(ES2020 브라우저 전역 스크립트), 프레임워크·번들러 없음, Node.js LTS 24.x 와 <code>node:test</code>(단위), <code>@playwright/test</code> 1.x 와 Chromium(e2e), 데이터는 localStorage, 서버 없음. 테스트 도구: <code>package.json</code> 의 scripts 는 SPEC 그대로(<code>test</code>, <code>test:coverage</code>, <code>e2e</code>), devDependency 는 <code>@playwright/test</code> 하나. <code>playwright.config.js</code> 는 맨 위에서 <code>process.env.PLAYWRIGHT_BROWSERS_PATH = '0'</code>, <code>testDir: 'e2e'</code>, Chromium 프로젝트 하나, 웹 서버 없음. e2e 는 <code>pathToFileURL(path.resolve('index.html')).href</code> 로 열고 시작할 때 localStorage 를 비운다. AC22 는 <code>page.on('request')</code> 로 <code>file:</code> 밖 요청을 센다. 키 조합은 <code>ControlOrMeta</code> 를 써서 맥과 다른 운영체제에서 같은 테스트가 돈다.</td><td>SPEC 검증 수단과 작업 환경을 그대로 따른다. C11 App 과 C12 Page 는 e2e 로만 확인한다(D2).</td></tr>
+<tr><td>D13</td><td>화면: C11 App 은 <code>&lt;table&gt;</code> 하나에 2600개 <code>&lt;td data-cell&gt;</code> 를 처음 한 번 만들고, 이후에는 C5 가 돌려준 바뀐 주소의 칸만 글자와 정렬 클래스를 고친다. 고치기는 <code>#cell-editor</code> 입력 상자 하나를 활성 칸 위에 겹쳐 쓴다. 수식 입력줄 <code>#formula-input</code> 은 활성 칸 원문을 보여 주고, 거기서 고치면 같은 확정 경로를 탄다.</td><td>2600칸을 매번 다시 그리지 않아 빠르고, e2e 고리(<code>[data-cell]</code>, <code>#cell-editor</code>)를 지킨다.</td></tr>
+<tr><td>D14</td><td>저장과 불러오기: C11 App 이 원문이 바뀌는 모든 경로(확정·지우기·붙여 넣기·되돌리기·다시 하기) 뒤에 <code>Storage.save(localStorage, sheet.entries())</code> 를 부른다. 열 때 <code>Storage.load(localStorage)</code> 결과를 C5 <code>loadAll</code> 로 넣고 전체를 다시 계산한다. CSV 는 C11 App 이 C5 <code>getDisplay</code> 로 보이는 값 맵을 만들어 <code>Csv.build(map)</code> 에 넘기고, 결과를 <code>Blob</code> + <code>&lt;a download="sheet.csv"&gt;</code> 로 내려받는다.</td><td>G15·G16 을 따르고 C9·C10 을 순수하게 둔다(D2).</td></tr>
+</tbody>
+</table>
+
+<h2>위험</h2>
+<table>
+<thead><tr><th>번호</th><th>위험</th><th>영향</th><th>대응</th></tr></thead>
+<tbody>
+<tr><td>R1</td><td><code>playwright.config.js</code> 안에서 넣은 <code>PLAYWRIGHT_BROWSERS_PATH</code> 가 브라우저 경로에 반영되지 않을 수 있다(SPEC G18, D12).</td><td class="imp-중">중</td><td>반영되지 않으면 <code>PLAYWRIGHT_BROWSERS_PATH=0 npm run e2e</code> 로 실행한다. 브라우저 설치와 실행 확인은 mvp-builder 가 한다.</td></tr>
+<tr><td>R2</td><td>file:// 페이지에서 Blob URL 내려받기가 Playwright <code>download</code> 이벤트로 잡히지 않을 수 있다(C11, D14).</td><td class="imp-중">중</td><td>e2e <code>csv.spec.js</code> 는 <code>page.waitForEvent('download')</code> 로 받고 내용을 읽어 비교한다. 잡히지 않으면 원인을 열린 질문으로 올린다. CSV 내용 규칙은 C10 단위 테스트가 따로 지킨다.</td></tr>
+<tr><td>R3</td><td>수식 옮기기를 정규식으로 하면 문자열 안의 <code>"A1"</code> 이나 함수 이름(<code>LOG10</code> 같은 꼴)까지 바뀐다(C4, C8).</td><td class="imp-중">중</td><td>D5 대로 토큰 단위로 옮기고, 문자열 토큰은 그대로 둔다. 단위 테스트에 <code>="A1"&amp;A1</code> 꼴을 넣는다.</td></tr>
+<tr><td>R4</td><td>넓은 범위(<code>SUM(A1:Z100)</code>)가 의존 간선 2600개를 만들고, 불러오기 때 전체 다시 계산이 느려질 수 있다(C5).</td><td class="imp-하">하</td><td>표 크기가 2600칸으로 고정이라 간선 수에 상한이 있다. 다시 계산은 기대는 칸 집합 안에서 칸마다 한 번이다(D9).</td></tr>
+<tr><td>R5</td><td>브라우저 기본 동작(Tab 의 포커스 이동, Ctrl+Z 의 입력 상자 되돌리기, F2, Backspace)과 앱 키 처리가 겹친다(C11).</td><td class="imp-중">중</td><td>고친 상태가 아닐 때 앱이 처리한 키는 <code>preventDefault</code> 한다. 고치는 중에는 Enter·Tab·Esc 만 가로챈다(G12). e2e <code>keyboard.spec.js</code>, <code>edit.spec.js</code>, <code>undo.spec.js</code> 로 확인한다.</td></tr>
+<tr><td>R6</td><td>오류가 여러 개 섞인 수식, IF 의 고르지 않은 쪽 오류, 숫자와 문자열 비교처럼 SPEC 이 정하지 않은 경우의 결과가 사람의 기대와 다를 수 있다(C3, C4, D7).</td><td class="imp-중">중</td><td>D7 로 순서를 정하고 열린 질문 Q1·Q2 로 올린다. 정한 규칙은 단위 테스트로 묶어 바꿀 때 바로 드러나게 한다.</td></tr>
+<tr><td>R7</td><td><code>--experimental-test-coverage</code> 의 옵션 이름이나 출력이 Node 24 와 25 사이에서 달라질 수 있다(D12, SPEC G19).</td><td class="imp-하">하</td><td>SPEC 의 명령을 그대로 쓰고, 실패하면 Node 버전과 함께 보고한다.</td></tr>
+<tr><td>R8</td><td>유효숫자 15자리 정리(D4)는 아주 크거나 작은 수를 <code>1e+21</code> 처럼 지수 꼴로 보인다(C2).</td><td class="imp-하">하</td><td>SPEC 은 그 밖의 서식이 없다고 했으므로 그대로 둔다. AC21 의 예만 단위 테스트로 지킨다.</td></tr>
+</tbody>
+</table>
+
+<h2>열린 질문</h2>
+<p class="note">설계에서 새로 생긴 질문이다. SPEC 의 Q1~Q8 은 다시 적지 않는다.</p>
+<table>
+<thead><tr><th>번호</th><th>질문</th></tr></thead>
+<tbody>
+<tr><td>Q1</td><td>숫자와 문자열을 비교하면(<code>=1&lt;"a"</code>, <code>="1"=1</code>) 어떻게 되어야 하는가? 이 설계는 엑셀처럼 숫자 &lt; 문자열 &lt; 참/거짓 순으로 보고, 같은 종류가 아니면 <code>=</code> 는 FALSE 로 둔다고 가정한다(D6, D7).</td></tr>
+<tr><td>Q2</td><td><code>IF</code> 의 고르지 않은 쪽에 오류가 있을 때(<code>=IF(TRUE,1,1/0)</code>) 오류를 퍼뜨리지 않는 엑셀 방식으로 정했다(D7). G4 를 글자 그대로 따라 퍼뜨려야 하는가?</td></tr>
+<tr><td>Q3</td><td>수식 문법 오류 <code>#ERROR!</code> 칸을 참조하는 칸도 <code>#ERROR!</code> 를 받도록(G4 와 같게) 정했다(D3, D7). 다른 결과를 원하는가?</td></tr>
+<tr><td>Q4</td><td>참/거짓 칸과 오류 값 칸의 정렬은 G10 이 정하지 않았다. 이 설계는 둘 다 왼쪽으로 둔다(D4). 엑셀처럼 가운데로 둘 것인가?</td></tr>
+<tr><td>Q5</td><td>수식이 아닌 칸에 사용자가 <code>#REF!</code> 처럼 오류 글자를 직접 치면 문자열로 둔다(G2). 오류 값으로 읽어야 하는가?</td></tr>
+</tbody>
+</table>
+
+<h2>확인 결과</h2>
+<p class="note">확인 4회. 1회차에 정합성 5 가 맞지 않아(Node.js 버전이 문서에 없음) D12 에 기술 스택을 적었다. 2회차는 모두 맞음. 3회차는 표 칸 안 코드의 <code>|</code> 를 이스케이프한 뒤, 4회차는 D6 에 Q1 참조를 더한 뒤 다시 확인했고 모두 맞음.</p>
+<table>
+<thead><tr><th>번호</th><th>항목</th><th>결과</th><th>근거</th></tr></thead>
+<tbody>
+<tr><td>형식 1</td><td>2절의 절이 모두 있다.</td><td class="pass">맞음</td><td>설계 제목, 개요, 기존 코드 파악, 구성 요소, 아키텍처 다이어그램, 아키텍처 결정, 위험, 열린 질문 여덟 절이 있다.</td></tr>
+<tr><td>형식 2</td><td>항목마다 번호가 있다.</td><td class="pass">맞음</td><td>C1~C12, D1~D14, R1~R8, Q1~Q5 가 빠짐없이 차례로 있다.</td></tr>
+<tr><td>형식 3</td><td>다이어그램이 코드 블록 안에 있고 ASCII 만 쓴다.</td><td class="pass">맞음</td><td><code>```text</code> 블록 안에 ASCII 밖 글자가 0개다.</td></tr>
+<tr><td>정합성 1</td><td>다이어그램과 구성 요소 표가 같다.</td><td class="pass">맞음</td><td>다이어그램 상자 12개(C1~C12)와 표 12행이 같고, 다이어그램의 간선 목록이 표의 의존 칸과 하나하나 같다.</td></tr>
+<tr><td>정합성 2</td><td>의존에 순환이 없다.</td><td class="pass">맞음</td><td>모든 의존이 번호가 더 작은, 곧 <code>index.html</code> 에서 먼저 읽는 구성 요소로 향한다.</td></tr>
+<tr><td>정합성 3</td><td>결정·위험이 가리키는 번호가 있다.</td><td class="pass">맞음</td><td>D·R 이 가리키는 C1~C12, D2·D5·D7·D9·D12·D14, Q1·Q2 가 모두 문서에 있다.</td></tr>
+<tr><td>정합성 4</td><td>SPEC 의 AC 마다 맡는 구성 요소가 있다.</td><td class="pass">맞음</td><td>AC1~AC22 22개 모두 구성 요소 표의 "맡는 성공 기준"에 하나 이상 나온다.</td></tr>
+<tr><td>정합성 5</td><td>기술 스택이 SPEC 작업 환경과 같다.</td><td class="pass">맞음</td><td>D12: HTML·CSS·JavaScript(ES2020 전역 스크립트), 프레임워크·번들러 없음, Node.js LTS 24.x·<code>node:test</code>, <code>@playwright/test</code> 1.x·Chromium, localStorage, 서버 없음. (1회차 맞지 않음 → 고침)</td></tr>
+</tbody>
+</table>
+</main>
+
+<script>
+(function () {
+  var LAYER_COLORS = ['#dbeafe', '#dcfce7', '#fef9c3', '#ffedd5', '#fce7f3', '#ede9fe'];
+  var LAYER_NAMES = ['L0 base', 'L1', 'L2', 'L3', 'L4 DOM', 'L5 page'];
+  var H = 48;
+  var comps = [
+    { id: 'C1', name: 'Address', file: 'src/address.js', layer: 0, x: 440, y: 560, w: 630,
+      resp: '칸 주소 해석과 만들기. A1 ↔ {col,row}, 대소문자 무시, $ 절대 표시, 범위 정규화(B5:A1 → A1:B5), 표 밖 판정(valid), 범위 안 주소 나열.',
+      deps: [], ac: 'AC11, AC13, AC16', d: ['D1', 'D2'], r: [] },
+    { id: 'C2', name: 'Value', file: 'src/value.js', layer: 0, x: 140, y: 560, w: 150,
+      resp: '원문 해석(G2: 숫자·문자열·수식·빈 칸), 칸 값 모양과 오류 값 상수(ERR_DIV0 등 여섯 개), 숫자·참/거짓·문자열 바꾸기(G5·G7), 보이는 글자 만들기(G10 유효숫자 15자리, TRUE/FALSE).',
+      deps: [], ac: 'AC5, AC13, AC21', d: ['D1', 'D2', 'D3', 'D4'], r: ['R8'] },
+    { id: 'C3', name: 'Functions', file: 'src/functions.js', layer: 1, x: 140, y: 450, w: 150,
+      resp: 'SUM, AVERAGE, MIN, MAX, COUNT, IF, ROUND, ABS 를 G8 대로 계산. 이름 대소문자 무시, 없는 이름은 #NAME?, 인자 수 틀림은 #VALUE!.',
+      deps: ['C2'], ac: 'AC12, AC13', d: ['D1', 'D2', 'D3', 'D7', 'D8'], r: ['R6'] },
+    { id: 'C4', name: 'Formula', file: 'src/formula.js', layer: 2, x: 280, y: 340, w: 150,
+      resp: '수식 토큰 나누기, 구문 분석(AST, G6 우선순위), 참조 목록 뽑기, 계산(칸 값은 넘겨받은 읽기 함수로 얻음), 참조 옮기기(shift).',
+      deps: ['C1', 'C2', 'C3'], ac: 'AC9, AC10, AC11, AC13, AC16', d: ['D1', 'D2', 'D3', 'D5', 'D6', 'D7'], r: ['R3', 'R6'] },
+    { id: 'C5', name: 'Sheet', file: 'src/sheet.js', layer: 3, x: 200, y: 230, w: 150,
+      resp: '칸 원문·값 저장, 의존 그래프(정방향·역방향), 바뀐 칸에 기대는 칸만 순서대로 다시 계산, 순환 찾기(#CIRC!), 계산 횟수 세기, 전체 다시 계산(불러오기 뒤).',
+      deps: ['C1', 'C2', 'C4'], ac: 'AC8, AC11, AC14, AC15, AC19', d: ['D1', 'D2', 'D3', 'D5', 'D9', 'D11', 'D13', 'D14'], r: ['R4'] },
+    { id: 'C6', name: 'Selection', file: 'src/selection.js', layer: 1, x: 560, y: 450, w: 150,
+      resp: '활성 칸·범위 상태와 이동 계산(G11): 방향키, Enter/Tab(Shift 포함), Shift+방향키, Shift+클릭, 표 끝에서 멈추기, 이름 칸 글자.',
+      deps: ['C1'], ac: 'AC3, AC4', d: ['D1', 'D2', 'D10'], r: [] },
+    { id: 'C7', name: 'History', file: 'src/history.js', layer: 0, x: 1100, y: 560, w: 130,
+      resp: '되돌리기·다시 하기 단계 쌓기(G14): 최대 100단계, 새 단계에서 다시 하기 목록 비움, 바뀐 것 없는 단계 무시.',
+      deps: [], ac: 'AC18', d: ['D1', 'D2', 'D11'], r: [] },
+    { id: 'C8', name: 'Clipboard', file: 'src/clipboard.js', layer: 3, x: 420, y: 230, w: 150,
+      resp: '고른 범위의 원문 기억, 붙일 자리 계산(G13): 활성 칸 기준 같은 크기, 표 밖 버림, 수식 참조는 C4 shift 로 옮김.',
+      deps: ['C1', 'C4'], ac: 'AC16, AC17', d: ['D1', 'D2', 'D5', 'D11'], r: ['R3'] },
+    { id: 'C9', name: 'Storage', file: 'src/storage.js', layer: 1, x: 740, y: 450, w: 150,
+      resp: '저장 형식 {"version":1,"cells":{...}} 직렬화·복원(G15). 저장소 객체를 인자로 받는다. 읽을 수 없으면 빈 표. 빈 칸·잘못된 주소는 버린다.',
+      deps: ['C1'], ac: 'AC19', d: ['D1', 'D2', 'D14'], r: [] },
+    { id: 'C10', name: 'Csv', file: 'src/csv.js', layer: 1, x: 920, y: 450, w: 150,
+      resp: '보이는 값으로 CSV 글자 만들기(G16): A1 부터 값이 있는 마지막 행·열까지, 쉼표, CRLF, 따옴표 감싸기, BOM.',
+      deps: ['C1'], ac: 'AC20', d: ['D1', 'D2', 'D3', 'D4', 'D14'], r: [] },
+    { id: 'C11', name: 'App', file: 'src/app.js', layer: 4, x: 515, y: 120, w: 150,
+      resp: 'DOM 그리기(머리글·2600칸·이름 칸·수식 입력줄·편집 상자·CSV 단추), 마우스·키 이벤트를 규칙 모듈 호출로 잇기, 고치기 상태(G12), 바뀐 칸만 화면 갱신, localStorage 와 Blob 내려받기 연결. 규칙은 두지 않는다.',
+      deps: ['C1', 'C2', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10'], ac: 'AC1, AC2, AC3, AC4, AC6, AC7, AC8, AC15, AC17, AC18, AC19, AC20, AC21', d: ['D1', 'D2', 'D4', 'D11', 'D12', 'D13', 'D14'], r: ['R2', 'R5'] },
+    { id: 'C12', name: 'Page', file: 'index.html, style.css', layer: 5, x: 515, y: 30, w: 150,
+      resp: '페이지 뼈대와 고정 스크립트 순서, 표·수식 입력줄 모양, 숫자 오른쪽·문자열 왼쪽 정렬 클래스. 외부 요청 없음.',
+      deps: ['C11'], ac: 'AC1, AC21, AC22', d: ['D1', 'D12'], r: ['R1', 'R7'] }
+  ];
+  // Orthogonal routes; each avoids every box (only lines may cross lines).
+  var edges = [
+    ['C12', 'C11', [[590, 78], [590, 120]]],
+    ['C11', 'C5', [[530, 168], [530, 195], [275, 195], [275, 230]]],
+    ['C11', 'C8', [[550, 168], [550, 230]]],
+    ['C11', 'C6', [[620, 168], [620, 450]]],
+    ['C11', 'C9', [[665, 150], [815, 150], [815, 450]]],
+    ['C11', 'C10', [[665, 138], [995, 138], [995, 450]]],
+    ['C11', 'C7', [[665, 127], [1165, 127], [1165, 560]]],
+    ['C11', 'C1', [[665, 162], [725, 162], [725, 560]]],
+    ['C11', 'C2', [[515, 145], [60, 145], [60, 584], [140, 584]]],
+    ['C5', 'C4', [[320, 278], [320, 340]]],
+    ['C5', 'C2', [[200, 260], [90, 260], [90, 572], [140, 572]]],
+    ['C5', 'C1', [[230, 278], [230, 315], [455, 315], [455, 560]]],
+    ['C8', 'C4', [[425, 278], [425, 340]]],
+    ['C8', 'C1', [[500, 278], [500, 560]]],
+    ['C4', 'C3', [[285, 388], [285, 450]]],
+    ['C4', 'C2', [[330, 388], [330, 530], [250, 530], [250, 560]]],
+    ['C4', 'C1', [[410, 388], [410, 545], [448, 545], [448, 560]]],
+    ['C3', 'C2', [[215, 498], [215, 560]]],
+    ['C6', 'C1', [[635, 498], [635, 560]]],
+    ['C9', 'C1', [[815, 498], [815, 560]]],
+    ['C10', 'C1', [[995, 498], [995, 560]]]
+  ];
+  var NS = 'http://www.w3.org/2000/svg';
+  var byId = {};
+  comps.forEach(function (c) { byId[c.id] = c; });
+
+  var eg = document.getElementById('edges');
+  var edgeEls = edges.map(function (e) {
+    var p = document.createElementNS(NS, 'path');
+    p.setAttribute('class', 'edge');
+    p.setAttribute('d', e[2].map(function (pt, i) { return (i ? 'L' : 'M') + pt[0] + ',' + pt[1]; }).join(' '));
+    eg.appendChild(p);
+    return { from: e[0], to: e[1], el: p };
+  });
+
+  var bg = document.getElementById('boxes');
+  var tip = document.getElementById('tip');
+  var wrap = document.getElementById('diagram-wrap');
+  var boxEls = {};
+  comps.forEach(function (c) {
+    var g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'box');
+    var r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', c.x); r.setAttribute('y', c.y);
+    r.setAttribute('width', c.w); r.setAttribute('height', H);
+    r.setAttribute('fill', LAYER_COLORS[c.layer]);
+    var t = document.createElementNS(NS, 'text');
+    t.setAttribute('x', c.x + c.w / 2); t.setAttribute('y', c.y + 21);
+    t.setAttribute('text-anchor', 'middle');
+    t.textContent = c.id + ' ' + c.name;
+    var f = document.createElementNS(NS, 'text');
+    f.setAttribute('class', 'file');
+    f.setAttribute('x', c.x + c.w / 2); f.setAttribute('y', c.y + 38);
+    f.setAttribute('text-anchor', 'middle');
+    f.textContent = c.file;
+    g.appendChild(r); g.appendChild(t); g.appendChild(f);
+    g.addEventListener('mouseenter', function () { show(c); });
+    g.addEventListener('mousemove', move);
+    g.addEventListener('mouseleave', hide);
+    bg.appendChild(g);
+    boxEls[c.id] = g;
+  });
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function show(c) {
+    tip.innerHTML = '<b>' + c.id + ' ' + esc(c.name) + ' <span style="font-weight:400;color:#57606a">(' + esc(c.file) + ')</span></b>' +
+      esc(c.resp) +
+      '<div class="tags">의존: ' + (c.deps.length ? c.deps.join(', ') : '없음') +
+      '<br>맡는 성공 기준: ' + c.ac +
+      '<br>관련 결정: ' + (c.d.length ? c.d.join(', ') : '없음') +
+      '<br>관련 위험: ' + (c.r.length ? c.r.join(', ') : '없음') + '</div>';
+    tip.style.display = 'block';
+    var linked = {}; linked[c.id] = true;
+    edgeEls.forEach(function (e) {
+      var on = e.from === c.id || e.to === c.id;
+      e.el.classList.toggle('hl', on);
+      if (on) { linked[e.from] = true; linked[e.to] = true; }
+    });
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].classList.toggle('dim', !linked[id]); });
+  }
+  function move(ev) {
+    var b = wrap.getBoundingClientRect();
+    var x = ev.clientX - b.left + 16, y = ev.clientY - b.top + 16;
+    if (x + 430 > b.width) x = ev.clientX - b.left - 440;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function hide() {
+    tip.style.display = 'none';
+    edgeEls.forEach(function (e) { e.el.classList.remove('hl'); });
+    Object.keys(boxEls).forEach(function (id) { boxEls[id].classList.remove('dim'); });
+  }
+
+  var lg = document.getElementById('legend');
+  LAYER_NAMES.forEach(function (n, i) {
+    var s = document.createElement('span');
+    s.innerHTML = '<i style="background:' + LAYER_COLORS[i] + '"></i>' + n;
+    lg.appendChild(s);
+  });
+
+  var tb = document.querySelector('#comp-table tbody');
+  comps.forEach(function (c) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + c.id + '</td><td>' + esc(c.name) + ' (<code>' + esc(c.file) + '</code>)</td><td>' + esc(c.resp) +
+      '</td><td>' + (c.deps.length ? c.deps.join(', ') : '없음') + '</td><td>' + c.ac + '</td>';
+    tb.appendChild(tr);
+  });
+})();
+</script>
+</body>
+</html>
