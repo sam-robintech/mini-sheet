@@ -56,7 +56,7 @@ var Formula = (function (Address, Value, Functions) {
         tokens.push({ type: 'func', value: m[1].toUpperCase() });
         i += m[0].length;
       } else if ((m = REF_RE.exec(rest))) {
-        tokens.push({ type: 'ref', value: m[0] });
+        tokens.push({ type: 'ref', value: m[0], start: i, end: i + m[0].length });
         i += m[0].length;
       } else if ((m = OP_RE.exec(rest))) {
         tokens.push({ type: 'op', value: m[0] });
@@ -268,7 +268,55 @@ var Formula = (function (Address, Value, Functions) {
     });
   }
 
-  return { parse: parse, evaluate: evaluate };
+  var REF_PARTS_RE = /^(\$?)[A-Za-z]+(\$?)\d+$/;
+
+  // 옮긴 참조 글자. 표 밖으로 밀리면 null. 처음부터 표 밖이던 참조는 그대로 둔다.
+  function shiftRef(text, dCol, dRow) {
+    var ref = Address.parseRef(text);
+    if (!ref.valid) return text;
+    var col = ref.absCol ? ref.col : ref.col + dCol;
+    var row = ref.absRow ? ref.row : ref.row + dRow;
+    if (col < 0 || col >= Address.MAX_COL || row < 0 || row >= Address.MAX_ROW) return null;
+    var m = REF_PARTS_RE.exec(text);
+    var addr = Address.toAddress(col, row);
+    return m[1] + addr.charAt(0) + m[2] + addr.slice(1);
+  }
+
+  // 수식 원문의 참조만 토큰 단위로 옮긴다(R3). 문자열·함수 이름·공백은 그대로 둔다.
+  function shift(text, dCol, dRow) {
+    if (text.charAt(0) !== '=') return text;
+    var body = text.slice(1);
+    var tokens;
+    try {
+      tokens = tokenize(body);
+    } catch (e) {
+      if (e instanceof SyntaxFail) return text;
+      throw e;
+    }
+    var out = '=';
+    var last = 0;
+    for (var i = 0; i < tokens.length; i++) {
+      var tok = tokens[i];
+      if (tok.type !== 'ref') continue;
+      var colon = tokens[i + 1];
+      var end = tokens[i + 2];
+      var replaced;
+      if (colon && colon.type === 'op' && colon.value === ':' && end && end.type === 'ref') {
+        var a = shiftRef(tok.value, dCol, dRow);
+        var b = shiftRef(end.value, dCol, dRow);
+        replaced = a && b ? a + body.slice(tok.end, end.start) + b : '#REF!';
+        i += 2;
+      } else {
+        end = tok;
+        replaced = shiftRef(tok.value, dCol, dRow) || '#REF!';
+      }
+      out += body.slice(last, tok.start) + replaced;
+      last = end.end;
+    }
+    return out + body.slice(last);
+  }
+
+  return { parse: parse, evaluate: evaluate, shift: shift };
 })(
   typeof module !== 'undefined' ? require('./address.js') : Address,
   typeof module !== 'undefined' ? require('./value.js') : Value,
