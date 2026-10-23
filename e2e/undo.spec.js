@@ -37,7 +37,7 @@ async function expectRow(page, a1, a2, b2) {
   await expect(cell(page, 'B2')).toHaveText(b2);
 }
 
-test('each Ctrl+Z undoes one commit, clear or paste step in reverse order', async ({ page }) => {
+test('AC18 each Ctrl+Z undoes one commit, clear or paste step in reverse order', async ({ page }) => {
   await openSheet(page);
   await commitClearPaste(page);
   await expectRow(page, '', '1', '1');
@@ -56,7 +56,7 @@ test('each Ctrl+Z undoes one commit, clear or paste step in reverse order', asyn
   await expect(editor(page)).not.toHaveClass(/\bediting\b/);
 });
 
-test('Ctrl+Y and Ctrl+Shift+Z redo undone steps', async ({ page }) => {
+test('AC18 Ctrl+Y and Ctrl+Shift+Z redo undone steps', async ({ page }) => {
   await openSheet(page);
   await commitClearPaste(page);
   for (let i = 0; i < 4; i++) await page.keyboard.press('ControlOrMeta+z');
@@ -75,7 +75,7 @@ test('Ctrl+Y and Ctrl+Shift+Z redo undone steps', async ({ page }) => {
   await expect(editor(page)).toHaveValue('');
 });
 
-test('undo updates the formula bar of the active cell', async ({ page }) => {
+test('AC18 undo updates the formula bar of the active cell', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '=1+1');
   await cell(page, 'A1').click();
@@ -85,7 +85,7 @@ test('undo updates the formula bar of the active cell', async ({ page }) => {
   await expect(page.locator('#formula-input')).toHaveValue('');
 });
 
-test('a new commit after undo leaves nothing to redo', async ({ page }) => {
+test('AC18 a new commit after undo leaves nothing to redo', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '1');
   await enter(page, 'A2', '2');
@@ -100,7 +100,7 @@ test('a new commit after undo leaves nothing to redo', async ({ page }) => {
   await expect(cell(page, 'B1')).toHaveText('3');
 });
 
-test('committing the same raw again is not a step', async ({ page }) => {
+test('AC18 committing the same raw again is not a step', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '1');
   await enter(page, 'B1', '5');
@@ -116,7 +116,7 @@ test('committing the same raw again is not a step', async ({ page }) => {
   await expect(cell(page, 'A1')).toHaveText('');
 });
 
-test('undo recalculates cells that depend on the restored cells', async ({ page }) => {
+test('AC18 undo recalculates cells that depend on the restored cells', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '2');
   await enter(page, 'B1', '=A1*3');
@@ -127,7 +127,7 @@ test('undo recalculates cells that depend on the restored cells', async ({ page 
   await expect(cell(page, 'B1')).toHaveText('6');
 });
 
-test('Ctrl+Z while editing stays inside the editor and adds no sheet step', async ({ page }) => {
+test('AC18 Ctrl+Z while editing stays inside the editor and adds no sheet step', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '1');
   await cell(page, 'B1').click();
@@ -138,4 +138,23 @@ test('Ctrl+Z while editing stays inside the editor and adds no sheet step', asyn
   await page.keyboard.press('Escape');
   await expect(cell(page, 'B1')).toHaveText('');
   await expect(cell(page, 'A1')).toHaveText('1');
+});
+
+test('AC18 after 101 changes the first one cannot be undone', async ({ page }) => {
+  await openSheet(page);
+  await enter(page, 'B1', 'first');
+  await cell(page, 'A1').click();
+  for (let i = 1; i <= 100; i++) {
+    await page.keyboard.type(String(i));
+    await page.keyboard.press('Enter');
+    if (i % 25 === 0) await expect(cell(page, `A${i}`)).toHaveText(String(i));
+  }
+  await expect(cell(page, 'A100')).toHaveText('100');
+
+  for (let i = 0; i < 100; i++) await page.keyboard.press('ControlOrMeta+z');
+  await expect(cell(page, 'A1')).toHaveText('');
+  await expect(cell(page, 'A100')).toHaveText('');
+  await expect(cell(page, 'B1')).toHaveText('first');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(cell(page, 'B1')).toHaveText('first');
 });

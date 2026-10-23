@@ -12,7 +12,7 @@ async function openSheet(page) {
 
 const cell = (page, addr) => page.locator(`[data-cell="${addr}"]`);
 
-test('typing 5 and Enter commits 5 and moves the active cell one down', async ({ page }) => {
+test('AC6 typing 5 and Enter commits 5 and moves the active cell one down', async ({ page }) => {
   await openSheet(page);
   await page.keyboard.type('5');
   await expect(page.locator('#cell-editor')).toHaveClass(/\bediting\b/);
@@ -24,7 +24,7 @@ test('typing 5 and Enter commits 5 and moves the active cell one down', async ({
   await expect(page.locator('#cell-editor')).toHaveValue('');
 });
 
-test('typing on a cell with content starts over with the new text', async ({ page }) => {
+test('AC6 typing on a cell with content starts over with the new text', async ({ page }) => {
   await openSheet(page);
   await page.keyboard.type('abc');
   await page.keyboard.press('Enter');
@@ -36,7 +36,7 @@ test('typing on a cell with content starts over with the new text', async ({ pag
   await expect(cell(page, 'A1')).toHaveText('이름');
 });
 
-test('Tab, Shift+Tab and Shift+Enter commit and move right, left and up', async ({ page }) => {
+test('AC6 Tab, Shift+Tab and Shift+Enter commit and move right, left and up', async ({ page }) => {
   await openSheet(page);
   await cell(page, 'B2').click();
   await page.keyboard.type('1');
@@ -66,7 +66,7 @@ async function caretAtEnd(page) {
   );
 }
 
-test('F2 opens the existing text with the caret at the end and Esc restores it', async ({ page }) => {
+test('AC7 F2 opens the existing text with the caret at the end and Esc restores it', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', 'abc');
   await cell(page, 'A1').click();
@@ -84,7 +84,7 @@ test('F2 opens the existing text with the caret at the end and Esc restores it',
   await expect(page.locator('#formula-input')).toHaveValue('abc');
 });
 
-test('double click opens the existing text with the caret at the end and Esc restores it', async ({ page }) => {
+test('AC7 double click opens the existing text with the caret at the end and Esc restores it', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', 'abc');
   await cell(page, 'A1').dblclick();
@@ -97,7 +97,7 @@ test('double click opens the existing text with the caret at the end and Esc res
   await expect(cell(page, 'A1')).toHaveText('abc');
 });
 
-test('arrow keys while editing move only the text caret', async ({ page }) => {
+test('AC7 arrow keys while editing move only the text caret', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'B2', 'abc');
   await cell(page, 'B2').click();
@@ -115,7 +115,7 @@ test('arrow keys while editing move only the text caret', async ({ page }) => {
   await expect(cell(page, 'B2')).toHaveText('aXbc');
 });
 
-test('Enter in the formula bar commits to the active cell', async ({ page }) => {
+test('AC7 Enter in the formula bar commits to the active cell', async ({ page }) => {
   await openSheet(page);
   await cell(page, 'A1').click();
   await page.locator('#formula-input').fill('=2*3');
@@ -126,7 +126,7 @@ test('Enter in the formula bar commits to the active cell', async ({ page }) => 
   await expect(page.locator('#cell-editor')).toBeFocused();
 });
 
-test('Esc in the formula bar cancels the change', async ({ page }) => {
+test('AC7 Esc in the formula bar cancels the change', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', 'abc');
   await cell(page, 'A1').click();
@@ -137,7 +137,7 @@ test('Esc in the formula bar cancels the change', async ({ page }) => {
   await expect(page.locator('#cell-editor')).toBeFocused();
 });
 
-test('committing A1 recalculates the cells that depend on it on screen', async ({ page }) => {
+test('AC15 committing A1 recalculates the cells that depend on it on screen', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '1');
   await enter(page, 'B1', '=A1*2');
@@ -150,7 +150,7 @@ test('committing A1 recalculates the cells that depend on it on screen', async (
 });
 
 for (const key of ['Delete', 'Backspace']) {
-  test(`${key} clears every cell of the selected range and recalculates`, async ({ page }) => {
+  test(`AC8 ${key} clears every cell of the selected range and recalculates`, async ({ page }) => {
     await openSheet(page);
     await enter(page, 'A1', '1');
     await enter(page, 'B1', '2');

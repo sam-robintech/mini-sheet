@@ -32,7 +32,7 @@ async function copyA1B2(page) {
   await page.keyboard.press('ControlOrMeta+c');
 }
 
-test('copying A1:B2 and pasting at D5 fills D5:E6 with shifted formulas', async ({ page }) => {
+test('AC17 copying A1:B2 and pasting at D5 fills D5:E6 with shifted formulas', async ({ page }) => {
   await openSheet(page);
   await fillA1B2(page);
   await copyA1B2(page);
@@ -52,7 +52,7 @@ test('copying A1:B2 and pasting at D5 fills D5:E6 with shifted formulas', async 
   await expect(page.locator('#cell-editor')).not.toHaveClass(/\bediting\b/);
 });
 
-test('copying does not change the sheet and pasted cells recalculate their dependents', async ({ page }) => {
+test('AC17 copying does not change the sheet and pasted cells recalculate their dependents', async ({ page }) => {
   await openSheet(page);
   await fillA1B2(page);
   await copyA1B2(page);
@@ -65,7 +65,7 @@ test('copying does not change the sheet and pasted cells recalculate their depen
   await expect(cell(page, 'F1')).toHaveText('9');
 });
 
-test('pasting a 2x2 range at Z100 changes only Z100 without page errors', async ({ page }) => {
+test('AC17 pasting a 2x2 range at Z100 changes only Z100 without page errors', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (err) => errors.push(err));
   await openSheet(page);
@@ -80,7 +80,7 @@ test('pasting a 2x2 range at Z100 changes only Z100 without page errors', async 
   expect(errors).toEqual([]);
 });
 
-test('pasting with nothing copied does nothing', async ({ page }) => {
+test('AC17 pasting with nothing copied does nothing', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (err) => errors.push(err));
   await openSheet(page);
@@ -92,7 +92,7 @@ test('pasting with nothing copied does nothing', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('the app never touches the operating system clipboard', async ({ page }) => {
+test('AC17 the app never touches the operating system clipboard', async ({ page }) => {
   await page.addInitScript(() => {
     window.__osClipboardUsed = false;
     const mark = () => { window.__osClipboardUsed = true; return Promise.resolve(''); };

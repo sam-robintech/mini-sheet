@@ -11,7 +11,7 @@ async function openSheet(page) {
   await page.reload();
 }
 
-test('empty sheet shows 26 column headers, 100 row headers and 2600 cells', async ({ page }) => {
+test('AC1 empty sheet shows 26 column headers, 100 row headers and 2600 cells', async ({ page }) => {
   await openSheet(page);
   const colHeaders = page.locator('thead th[data-col]');
   await expect(colHeaders).toHaveCount(26);
@@ -26,7 +26,7 @@ test('empty sheet shows 26 column headers, 100 row headers and 2600 cells', asyn
   await expect(page.locator('[data-cell="Z100"]')).toHaveCount(1);
 });
 
-test('first active cell is A1 with an empty formula bar', async ({ page }) => {
+test('AC1 first active cell is A1 with an empty formula bar', async ({ page }) => {
   await openSheet(page);
   await expect(page.locator('#name-box')).toHaveText('A1');
   await expect(page.locator('#formula-input')).toHaveValue('');
@@ -37,7 +37,7 @@ test('first active cell is A1 with an empty formula bar', async ({ page }) => {
   await expect(page.locator('#cell-editor')).toBeFocused();
 });
 
-test('clicking a cell makes it active and shows its address and raw text', async ({ page }) => {
+test('AC2 clicking a cell makes it active and shows its address and raw text', async ({ page }) => {
   await openSheet(page);
   await page.locator('[data-cell="B3"]').click();
   await expect(page.locator('[data-cell="B3"]')).toHaveClass(/\bactive\b/);
@@ -53,7 +53,7 @@ test('clicking a cell makes it active and shows its address and raw text', async
   await expect(page.locator('#cell-editor')).toBeFocused();
 });
 
-test('number cells align right and string cells align left', async ({ page }) => {
+test('AC21 number cells align right and string cells align left', async ({ page }) => {
   await openSheet(page);
   for (const raw of ['5', 'abc', '=0.1+0.2', '=1/3', '="x"&1']) {
     await page.keyboard.type(raw);
@@ -71,7 +71,7 @@ test('number cells align right and string cells align left', async ({ page }) =>
   expect(aligns).toEqual(['right', 'left']);
 });
 
-test('page loads without requests outside file URLs and without errors', async ({ page }) => {
+test('AC22 page loads without requests outside file URLs and without errors', async ({ page }) => {
   const outside = [];
   const errors = [];
   page.on('request', (request) => {

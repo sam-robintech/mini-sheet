@@ -18,7 +18,7 @@ async function enter(page, addr, raw) {
   await page.keyboard.press('Enter');
 }
 
-test('raw text and computed values come back after a reload', async ({ page }) => {
+test('AC19 raw text and computed values come back after a reload', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '2');
   await enter(page, 'B1', '=A1*3');
@@ -31,7 +31,7 @@ test('raw text and computed values come back after a reload', async ({ page }) =
   await expect(page.locator('#formula-input')).toHaveValue('=A1*3');
 });
 
-test('a broken saved value opens an empty sheet without a page error', async ({ page }) => {
+test('AC19 a broken saved value opens an empty sheet without a page error', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => errors.push(error));
   await openSheet(page);
@@ -44,7 +44,7 @@ test('a broken saved value opens an empty sheet without a page error', async ({ 
   expect(errors).toEqual([]);
 });
 
-test('the undone state is what comes back after a reload', async ({ page }) => {
+test('AC19 the undone state is what comes back after a reload', async ({ page }) => {
   await openSheet(page);
   await enter(page, 'A1', '1');
   await enter(page, 'A2', '=A1+1');

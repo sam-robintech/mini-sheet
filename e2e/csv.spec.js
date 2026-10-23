@@ -35,19 +35,19 @@ async function download(page) {
   return file;
 }
 
-test('the CSV button shows its label at the top of the page', async ({ page }) => {
+test('AC20 the CSV button shows its label at the top of the page', async ({ page }) => {
   await openSheet(page);
   await expect(page.locator('#download-csv')).toHaveText('CSV 내려받기');
 });
 
-test('pressing the CSV button downloads sheet.csv', async ({ page }) => {
+test('AC20 pressing the CSV button downloads sheet.csv', async ({ page }) => {
   await openSheet(page);
   await fillSample(page);
   const file = await download(page);
   expect(file.suggestedFilename()).toBe('sheet.csv');
 });
 
-test('the downloaded file holds the BOM and the shown values', async ({ page }) => {
+test('AC20 the downloaded file holds the BOM and the shown values', async ({ page }) => {
   await openSheet(page);
   await fillSample(page);
   const file = await download(page);
@@ -55,7 +55,7 @@ test('the downloaded file holds the BOM and the shown values', async ({ page }) 
   expect(text).toBe('﻿이름,2\r\n"a,""b""",\r\n,x\r\n');
 });
 
-test('downloading makes no request outside the page', async ({ page }) => {
+test('AC20 downloading makes no request outside the page', async ({ page }) => {
   const outside = [];
   page.on('request', (request) => {
     const url = request.url();
