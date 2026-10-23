@@ -5,6 +5,7 @@ var App = (function () {
   var editing = false;
   var shown = null;
   var selected = [];
+  var clip = null;
   var wrap;
   var nameBox;
   var formulaInput;
@@ -139,6 +140,27 @@ var App = (function () {
     showActive();
   }
 
+  // 페이지 안 클립보드에 고른 범위의 원문을 기억한다(G13). 운영체제 클립보드는 쓰지 않는다.
+  function copyRange() {
+    clip = Clipboard.copy(sheet.getRaw, Selection.range(selection));
+  }
+
+  // 활성 칸을 왼쪽 위로 붙인다. 표 밖으로 넘치는 칸은 Clipboard 가 버린다.
+  function pasteClip() {
+    if (!clip) return;
+    sheet.setMany(Clipboard.paste(clip, selection.active)).forEach(renderCell);
+    showActive();
+  }
+
+  // 한글 자판에서도 Ctrl/Cmd+C·V 를 잡도록 key 와 code 를 함께 본다.
+  function shortcut(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return null;
+    var key = event.key.toLowerCase();
+    if (key === 'c' || event.code === 'KeyC') return 'copy';
+    if (key === 'v' || event.code === 'KeyV') return 'paste';
+    return null;
+  }
+
   function onEditorInput() {
     if (!editing) startEdit();
   }
@@ -156,6 +178,13 @@ var App = (function () {
         !event.ctrlKey && !event.metaKey && !event.altKey) {
       event.preventDefault();
       clearRange();
+      return;
+    }
+    var action = shortcut(event);
+    if (action) {
+      event.preventDefault();
+      if (action === 'copy') copyRange();
+      else pasteClip();
       return;
     }
     var arrow = ARROWS[event.key];
