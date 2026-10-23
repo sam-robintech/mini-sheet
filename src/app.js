@@ -130,6 +130,15 @@ var App = (function () {
     commitRaw(editor.value);
   }
 
+  // 고른 범위의 모든 칸을 한 번에 비운다(AC8).
+  function clearRange() {
+    var list = Address.rangeAddresses(Selection.range(selection)).map(function (addr) {
+      return { addr: addr, raw: '' };
+    });
+    sheet.setMany(list).forEach(renderCell);
+    showActive();
+  }
+
   function onEditorInput() {
     if (!editing) startEdit();
   }
@@ -141,6 +150,12 @@ var App = (function () {
     if (event.key === 'F2') {
       event.preventDefault();
       openEdit();
+      return;
+    }
+    if ((event.key === 'Delete' || event.key === 'Backspace') &&
+        !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      clearRange();
       return;
     }
     var arrow = ARROWS[event.key];

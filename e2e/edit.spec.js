@@ -148,3 +148,27 @@ test('committing A1 recalculates the cells that depend on it on screen', async (
   await expect(cell(page, 'B1')).toHaveText('20');
   await expect(cell(page, 'C1')).toHaveText('21');
 });
+
+for (const key of ['Delete', 'Backspace']) {
+  test(`${key} clears every cell of the selected range and recalculates`, async ({ page }) => {
+    await openSheet(page);
+    await enter(page, 'A1', '1');
+    await enter(page, 'B1', '2');
+    await enter(page, 'A2', '3');
+    await enter(page, 'B2', 'x');
+    await enter(page, 'C1', '=SUM(A1:B2)');
+    await expect(cell(page, 'C1')).toHaveText('6');
+    await cell(page, 'A1').click();
+    await cell(page, 'B2').click({ modifiers: ['Shift'] });
+    await expect(page.locator('#name-box')).toHaveText('A1:B2');
+    await page.keyboard.press(key);
+    for (const addr of ['A1', 'B1', 'A2', 'B2']) {
+      await expect(cell(page, addr)).toHaveText('');
+    }
+    await expect(cell(page, 'C1')).toHaveText('0');
+    await expect(page.locator('#formula-input')).toHaveValue('');
+    await expect(page.locator('#cell-editor')).toHaveValue('');
+    await expect(page.locator('#cell-editor')).not.toHaveClass(/\bediting\b/);
+    await expect(page.locator('#name-box')).toHaveText('A1:B2');
+  });
+}
