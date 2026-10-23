@@ -1,0 +1,120 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif;
+  font-size: 13px;
+}
+
+.toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-bottom: 1px solid #ccc;
+}
+
+.name-box {
+  width: 80px;
+  padding: 3px 6px;
+  border: 1px solid #ccc;
+  font-family: monospace;
+}
+
+.formula-input {
+  flex: 1;
+  padding: 3px 6px;
+  border: 1px solid #ccc;
+  font-family: monospace;
+}
+
+.grid-wrap {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+}
+
+.grid {
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.grid th,
+.grid td {
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.grid th {
+  position: sticky;
+  background: #f3f3f3;
+  font-weight: normal;
+  color: #555;
+  text-align: center;
+}
+
+.grid thead th {
+  top: 0;
+  z-index: 2;
+}
+
+.grid tbody th {
+  left: 0;
+  z-index: 1;
+}
+
+.grid thead th.corner {
+  left: 0;
+  z-index: 3;
+}
+
+.grid th.corner,
+.grid tbody th {
+  width: 40px;
+}
+
+.grid td {
+  width: 90px;
+}
+
+.grid td.right {
+  text-align: right;
+}
+
+.grid td.left {
+  text-align: left;
+}
+
+.grid td.active {
+  outline: 2px solid #1a73e8;
+  outline-offset: -2px;
+}
+
+.cell-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0 4px;
+  border: 0;
+  opacity: 0;
+  font: inherit;
+  z-index: 4;
+}
+
+.cell-editor.editing {
+  opacity: 1;
+  border: 2px solid #1a73e8;
+}

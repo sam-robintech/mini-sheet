@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>미니 스프레드시트</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="toolbar">
+    <div id="name-box" class="name-box"></div>
+    <input id="formula-input" class="formula-input" type="text" autocomplete="off" spellcheck="false">
+  </div>
+  <div id="grid-wrap" class="grid-wrap">
+    <table id="grid" class="grid"></table>
+    <input id="cell-editor" class="cell-editor" type="text" autocomplete="off" spellcheck="false">
+  </div>
+  <script src="src/address.js"></script>
+  <script src="src/value.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
