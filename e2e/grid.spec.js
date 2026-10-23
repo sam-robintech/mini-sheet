@@ -37,6 +37,40 @@ test('first active cell is A1 with an empty formula bar', async ({ page }) => {
   await expect(page.locator('#cell-editor')).toBeFocused();
 });
 
+test('clicking a cell makes it active and shows its address and raw text', async ({ page }) => {
+  await openSheet(page);
+  await page.locator('[data-cell="B3"]').click();
+  await expect(page.locator('[data-cell="B3"]')).toHaveClass(/\bactive\b/);
+  await expect(page.locator('[data-cell].active')).toHaveCount(1);
+  await expect(page.locator('#name-box')).toHaveText('B3');
+  await expect(page.locator('#formula-input')).toHaveValue('');
+  await page.keyboard.type('=1+1');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('[data-cell="B3"]')).toHaveText('2');
+  await page.locator('[data-cell="B3"]').click();
+  await expect(page.locator('#name-box')).toHaveText('B3');
+  await expect(page.locator('#formula-input')).toHaveValue('=1+1');
+  await expect(page.locator('#cell-editor')).toBeFocused();
+});
+
+test('number cells align right and string cells align left', async ({ page }) => {
+  await openSheet(page);
+  for (const raw of ['5', 'abc', '=0.1+0.2', '=1/3', '="x"&1']) {
+    await page.keyboard.type(raw);
+    await page.keyboard.press('Enter');
+  }
+  await expect(page.locator('[data-cell="A1"]')).toHaveClass(/\bright\b/);
+  await expect(page.locator('[data-cell="A2"]')).toHaveClass(/\bleft\b/);
+  await expect(page.locator('[data-cell="A3"]')).toHaveText('0.3');
+  await expect(page.locator('[data-cell="A3"]')).toHaveClass(/\bright\b/);
+  await expect(page.locator('[data-cell="A4"]')).toHaveText('0.333333333333333');
+  await expect(page.locator('[data-cell="A5"]')).toHaveText('x1');
+  await expect(page.locator('[data-cell="A5"]')).toHaveClass(/\bleft\b/);
+  const aligns = await page.locator('[data-cell="A1"], [data-cell="A2"]')
+    .evaluateAll((tds) => tds.map((td) => getComputedStyle(td).textAlign));
+  expect(aligns).toEqual(['right', 'left']);
+});
+
 test('page loads without requests outside file URLs and without errors', async ({ page }) => {
   const outside = [];
   const errors = [];

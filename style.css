@@ -112,9 +112,11 @@ body {
   opacity: 0;
   font: inherit;
   z-index: 4;
+  pointer-events: none;
 }
 
 .cell-editor.editing {
   opacity: 1;
+  pointer-events: auto;
   border: 2px solid #1a73e8;
 }
