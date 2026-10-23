@@ -2,6 +2,7 @@ var App = (function () {
   var cells = {};
   var sheet = Sheet.create();
   var selection = Selection.create();
+  var history = History.create();
   var editing = false;
   var shown = null;
   var selected = [];
@@ -118,13 +119,37 @@ var App = (function () {
     editor.setSelectionRange(raw.length, raw.length);
   }
 
+  // 원문을 바꾸는 단 하나의 길. 바뀐 칸을 다시 그리고 [{ addr, before, after }] 를 돌려준다(D11).
+  function applyRaws(list) {
+    var step = list.map(function (item) {
+      return { addr: item.addr, before: sheet.getRaw(item.addr) };
+    });
+    var changed = sheet.setMany(list);
+    step.forEach(function (item) {
+      item.after = sheet.getRaw(item.addr);
+      if (changed.indexOf(item.addr) < 0) changed.push(item.addr);
+    });
+    changed.forEach(renderCell);
+    return step;
+  }
+
+  // 확정 한 번·지우기 한 번·붙여 넣기 한 번이 되돌리기 한 단계다.
+  function change(list) {
+    history.push(applyRaws(list));
+  }
+
+  // 되돌리기는 before 를, 다시 하기는 after 를 넣는다.
+  function replay(step, side) {
+    if (!step) return;
+    applyRaws(step.map(function (item) { return { addr: item.addr, raw: item[side] }; }));
+    showActive();
+  }
+
   // 편집 상자와 수식 입력줄이 함께 타는 확정 경로.
   function commitRaw(raw) {
     var addr = activeAddr();
-    var changed = sheet.setRaw(addr, raw);
     endEdit();
-    if (changed.indexOf(addr) < 0) changed.push(addr);
-    changed.forEach(renderCell);
+    change([{ addr: addr, raw: raw }]);
   }
 
   function commit() {
@@ -136,7 +161,7 @@ var App = (function () {
     var list = Address.rangeAddresses(Selection.range(selection)).map(function (addr) {
       return { addr: addr, raw: '' };
     });
-    sheet.setMany(list).forEach(renderCell);
+    change(list);
     showActive();
   }
 
@@ -148,16 +173,20 @@ var App = (function () {
   // 활성 칸을 왼쪽 위로 붙인다. 표 밖으로 넘치는 칸은 Clipboard 가 버린다.
   function pasteClip() {
     if (!clip) return;
-    sheet.setMany(Clipboard.paste(clip, selection.active)).forEach(renderCell);
+    change(Clipboard.paste(clip, selection.active));
     showActive();
   }
 
-  // 한글 자판에서도 Ctrl/Cmd+C·V 를 잡도록 key 와 code 를 함께 본다.
+  // 한글 자판에서도 Ctrl/Cmd+C·V·Z·Y 를 잡도록 key 와 code 를 함께 본다.
   function shortcut(event) {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return null;
+    if (!(event.ctrlKey || event.metaKey) || event.altKey) return null;
     var key = event.key.toLowerCase();
+    var isZ = key === 'z' || event.code === 'KeyZ';
+    if (event.shiftKey) return isZ ? 'redo' : null;
     if (key === 'c' || event.code === 'KeyC') return 'copy';
     if (key === 'v' || event.code === 'KeyV') return 'paste';
+    if (isZ) return 'undo';
+    if (key === 'y' || event.code === 'KeyY') return 'redo';
     return null;
   }
 
@@ -184,7 +213,9 @@ var App = (function () {
     if (action) {
       event.preventDefault();
       if (action === 'copy') copyRange();
-      else pasteClip();
+      else if (action === 'paste') pasteClip();
+      else if (action === 'undo') replay(history.undo(), 'before');
+      else replay(history.redo(), 'after');
       return;
     }
     var arrow = ARROWS[event.key];
