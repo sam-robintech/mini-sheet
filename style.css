@@ -96,6 +96,10 @@ body {
   text-align: left;
 }
 
+.grid td.selected {
+  background: #e8f0fe;
+}
+
 .grid td.active {
   outline: 2px solid #1a73e8;
   outline-offset: -2px;

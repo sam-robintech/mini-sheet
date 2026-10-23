@@ -4,6 +4,7 @@ var App = (function () {
   var selection = Selection.create();
   var editing = false;
   var shown = null;
+  var selected = [];
   var wrap;
   var nameBox;
   var formulaInput;
@@ -67,15 +68,31 @@ var App = (function () {
     editor.style.height = rect.height + 'px';
   }
 
+  // 고른 범위 칸에 .selected 를 붙인다.
+  function showSelected() {
+    selected.forEach(function (addr) { cells[addr].classList.remove('selected'); });
+    var r = Selection.range(selection);
+    selected = [];
+    for (var row = r.top; row <= r.bottom; row++) {
+      for (var col = r.left; col <= r.right; col++) {
+        var addr = Address.toAddress(col, row);
+        cells[addr].classList.add('selected');
+        selected.push(addr);
+      }
+    }
+  }
+
   function showActive() {
     var addr = activeAddr();
     if (shown) cells[shown].classList.remove('active');
     cells[addr].classList.add('active');
     shown = addr;
+    showSelected();
     nameBox.textContent = Selection.rangeText(selection);
     formulaInput.value = sheet.getRaw(addr);
     placeEditor();
-    cells[addr].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    var focus = Address.toAddress(selection.focus.col, selection.focus.row);
+    cells[focus].scrollIntoView({ block: 'nearest', inline: 'nearest' });
     editor.focus({ preventScroll: true });
   }
 
@@ -117,13 +134,29 @@ var App = (function () {
     if (!editing) startEdit();
   }
 
+  var ARROWS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+
+  // 고친 상태가 아닐 때 방향키·Enter·Tab 은 move, Shift+방향키는 extend(D13, R5).
+  function onIdleKeydown(event) {
+    if (event.key === 'F2') {
+      event.preventDefault();
+      openEdit();
+      return;
+    }
+    var arrow = ARROWS[event.key];
+    var dir = arrow || null;
+    if (event.key === 'Enter') dir = event.shiftKey ? 'up' : 'down';
+    else if (event.key === 'Tab') dir = event.shiftKey ? 'left' : 'right';
+    if (!dir || event.ctrlKey || event.metaKey || event.altKey) return;
+    event.preventDefault();
+    selection = arrow && event.shiftKey ? Selection.extend(selection, dir) : Selection.move(selection, dir);
+    showActive();
+  }
+
   function onEditorKeydown(event) {
     if (event.isComposing) return;
     if (!editing) {
-      if (event.key === 'F2') {
-        event.preventDefault();
-        openEdit();
-      }
+      onIdleKeydown(event);
       return;
     }
     if (event.key === 'Escape') {
@@ -147,7 +180,8 @@ var App = (function () {
     event.preventDefault();
     if (editing) commit();
     var ref = Address.parseRef(td.getAttribute('data-cell'));
-    selection = Selection.select({ col: ref.col, row: ref.row });
+    var cell = { col: ref.col, row: ref.row };
+    selection = event.shiftKey ? Selection.extendTo(selection, cell) : Selection.select(cell);
     showActive();
   }
 
