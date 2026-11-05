@@ -85,3 +85,19 @@ test('isError tells error values apart', () => {
   assert.equal(Value.isError(Value.ERR_NAME), true);
   assert.equal(Value.isError(Value.number(1)), false);
 });
+
+test('isNegative is true for negative numbers, even very small ones', () => {
+  assert.equal(Value.isNegative(Value.number(-3)), true);
+  assert.equal(Value.isNegative(Value.number(-1e-20)), true);
+});
+
+test('isNegative is false for zero, positive numbers, strings, booleans, errors and empty cells', () => {
+  assert.equal(Value.isNegative(Value.number(0)), false);
+  assert.equal(Value.isNegative(Value.number(-0)), false);
+  assert.equal(Value.isNegative(Value.number(5)), false);
+  assert.equal(Value.isNegative(Value.string('-3')), false);
+  assert.equal(Value.isNegative(Value.bool(true)), false);
+  assert.equal(Value.isNegative(Value.bool(false)), false);
+  assert.equal(Value.isNegative(Value.ERR_DIV0), false);
+  assert.equal(Value.isNegative(Value.EMPTY), false);
+});

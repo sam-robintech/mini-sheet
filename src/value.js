@@ -54,6 +54,10 @@ var Value = (function () {
     return v.type === 'number' ? 'right' : 'left';
   }
 
+  function isNegative(v) {
+    return v.type === 'number' && v.value < 0;
+  }
+
   var ERR_DIV0 = error('#DIV/0!');
   var ERR_NAME = error('#NAME?');
   var ERR_REF = error('#REF!');
@@ -65,7 +69,7 @@ var Value = (function () {
            ERR_VALUE: ERR_VALUE, ERR_CIRC: ERR_CIRC, ERR_SYNTAX: ERR_SYNTAX,
            number: number, string: string, bool: bool, error: error, isError: isError,
            parseRaw: parseRaw, display: display, toNumber: toNumber, toText: toText,
-           align: align };
+           align: align, isNegative: isNegative };
 })();
 
 if (typeof module !== 'undefined') module.exports = Value;
