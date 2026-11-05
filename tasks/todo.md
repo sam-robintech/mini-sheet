@@ -418,3 +418,67 @@
 - TQ1  T9 의 한글 IME 첫 글자 처리(D13)는 Playwright `keyboard.type` 으로는 IME 조합을 재현하지 못한다. e2e 는 `keyboard.type('이름')` 이 들어가는지만 보고, 실제 IME 조합은 사람 확인으로 둔다고 가정했다. e2e 로 꼭 확인해야 하는가?
 - TQ2  "빌드" 칸은 빌드 단계가 없어(SPEC 검증 수단) `index.html` 을 열어 콘솔 오류가 없는지 보는 것으로 대신했다. 다른 검사(예: `node --check src/*.js`)를 원하는가?
 - TQ3  T7 의 계산 횟수 테스트에 다시 계산하지 않을 칸 D1=`=7` 을 더했다. AC15 의 "바뀐 칸에 기대지 않는 수식은 다시 계산하지 않는다" 를 확인하려는 가정이다.
+
+---
+
+# 변경 요청: 음수 칸 글자를 빨간색으로 보인다
+
+읽은 문서: `change.md`, `SPEC.md`(G20, AC23, 음수 칸 e2e 고리), `tasks/plan.md` 의 "변경: 음수 칸 글자를 빨간색으로 보인다"(D15–D18, R9–R11). T1–T20 은 앞에서 끝났고 이 절은 새 카드만 덧붙인다. 위의 공통 규칙을 그대로 따른다.
+
+## T21: 음수 판정 규칙
+- 설명: C2 Value 에 `isNegative(v)` 를 더하고 `Value` 반환 객체에 넣는다(D15). 칸 값(D3)을 받아 `v.type === 'number' && v.value < 0` 을 돌려주고, 보이는 글자는 보지 않는다. `tests/value.test.js` 에 AC23 의 값 목록을 그대로 시험한다. DOM 은 건드리지 않는다(D2).
+- 수용 기준:
+  - [ ] `isNegative` 가 숫자 -3, -0.5 에서 `true` 다.
+  - [ ] 숫자 0, -0, 5, 문자열 `-abc`, 참·거짓, 오류 값 `#DIV/0!`, 빈 칸에서 `false` 다.
+  - [ ] 기존 `display`·`align` 시험이 그대로 통과한다.
+- 검증:
+  - [ ] 테스트: `npm test`
+  - [ ] 빌드: 없음(빌드 단계 없음)
+  - [ ] 사람 확인: `tests/value.test.js` 의 `isNegative` 시험에 AC23 의 참 2개, 거짓 8개(0, -0, 5, `-abc`, TRUE, FALSE, `#DIV/0!`, 빈 칸) 값이 모두 있는지 본다.
+- 의존 작업: T2
+- 건드릴 파일: `src/value.js`, `tests/value.test.js`
+- 크기: S
+- 구성 요소: C2
+- 닫는 성공 기준: 없음(AC23 의 단위 부분, 화면은 T22)
+
+## T22: 음수 칸 빨간 글자 화면
+- 설명: C11 App 의 `renderCell` 에서 정렬 클래스를 고친 바로 뒤에 `td.classList.toggle('negative', Value.isNegative(value))` 를 부른다(D16). 새 갱신 경로는 만들지 않는다. C12 `style.css` 에 `.grid td.negative { color: #c00; }` 를 더한다(D17). `active`·`selected` 클래스와 `#cell-editor` 의 색은 건드리지 않는다. `e2e/negative.spec.js` 를 기존 e2e 처럼 file:// 로 열고 localStorage 를 비운 뒤 AC23 의 화면 예를 확인한다(D18).
+- 수용 기준:
+  - [ ] A1=`-3`, A2=`=1-5`, A3=`0`, A4=`5`, A5=`-abc`, A6=`=1/0`, A7=`=1>2` 이면 A1·A2 만 `[data-cell].negative` 이고 `getComputedStyle(칸).color` 가 `rgb(204, 0, 0)` 이다. A3~A7 은 `negative` 클래스가 없고 글자색이 `rgb(204, 0, 0)` 이 아니다.
+  - [ ] B1=`=A4-10` 은 빨갛고, A4 를 `20` 으로 확정하면 B1(=10)은 클래스가 떨어지고 빨갛지 않다(다시 계산 경로).
+  - [ ] A1 을 `3` 으로 고치면 A1 도 클래스가 떨어지고 빨갛지 않다. CSV·저장 형식은 바뀌지 않는다(기존 `e2e/csv.spec.js`·`e2e/storage.spec.js` 통과).
+- 검증:
+  - [ ] 테스트: `npm test` 와 `npm run e2e -- e2e/negative.spec.js`, 이어서 `npm run e2e`(브라우저가 없으면 쓰는 데까지만)
+  - [ ] 빌드: 없음. `open index.html` 로 열어 콘솔 오류가 없는지 본다.
+  - [ ] 사람 확인: 브라우저에서 음수 칸을 클릭해 활성·고른 칸이 되어도 빨간 글자가 남고, 그 칸을 F2 로 고칠 때 입력 상자 글자는 빨갛지 않은지 본다.
+- 의존 작업: T21
+- 건드릴 파일: `src/app.js`, `style.css`, `e2e/negative.spec.js`
+- 크기: M
+- 구성 요소: C11, C12
+- 닫는 성공 기준: AC23
+
+## 점검 지점: T21–T22 뒤
+- [ ] 전체 테스트 통과
+- [ ] 빌드 성공
+- [ ] 핵심 흐름이 끝까지 동작
+- [ ] 사람 검토
+- [ ] `npm run test:coverage` 가 90% 이상으로 통과(SPEC 커버리지 목표)
+
+## 이번 변경의 성공 기준이 닫히는 곳
+
+AC1–AC22 는 위 표대로 T1–T20 에서 닫혔다.
+
+| 성공 기준 | 닫는 작업 | 단위 부분 |
+|---|---|---|
+| AC23 | T22 | T21 |
+
+## 이번 변경에서 병렬로 할 수 있는 작업
+
+- 병렬 가능: 없음. T22 가 T21 의 `Value.isNegative` 를 부르는 의존 사슬이다. T22 안에서 `style.css` 규칙과 `e2e/negative.spec.js` 쓰기는 `src/app.js` 고치기와 파일이 겹치지 않아 함께 써도 된다.
+- 순서대로: T21 → T22. T22 는 `src/app.js` 공유 상태 변경이므로 앞 작업들처럼 하나씩 한다.
+
+## 이번 변경의 열린 질문
+
+- TQ4  T22 의 "빨갛지 않다" 는 SPEC AC23 대로 `getComputedStyle(칸).color` 가 `rgb(204, 0, 0)` 이 아닌 것으로 본다. 기본 글자색의 정확한 값(`rgb(0, 0, 0)` 등)과 같은지까지 확인하지는 않는다고 가정했다. 정확한 값으로 확인해야 하는가?
+- TQ5  T21 의 `-0` 시험은 칸 값 `{ type: 'number', value: -0 }` 를 직접 만들어 넣는다고 가정했다. 원문 `-0` 을 `parseRaw` 로 읽은 값으로 시험해야 하는가?
+- TQ6  색 값(`#c00`)과 아주 작은 음수 처리는 SPEC Q9·Q10 의 가정을 따른다. 답이 바뀌면 T21(판정)·T22(CSS)만 고치면 된다.
