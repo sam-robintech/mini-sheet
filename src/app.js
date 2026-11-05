@@ -57,6 +57,7 @@ var App = (function () {
     td.textContent = sheet.getDisplay(addr);
     td.classList.remove('right', 'left');
     if (value.type !== 'empty') td.classList.add(Value.align(value));
+    td.classList.toggle('negative', Value.isNegative(value));
   }
 
   function placeEditor() {

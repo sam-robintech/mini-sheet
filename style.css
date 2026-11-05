@@ -96,6 +96,10 @@ body {
   text-align: left;
 }
 
+.grid td.negative {
+  color: #ff0000;
+}
+
 .grid td.selected {
   background: #e8f0fe;
 }
