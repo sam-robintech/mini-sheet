@@ -81,6 +81,22 @@ test('align puts only numbers on the right', () => {
   assert.equal(Value.align(Value.EMPTY), 'left');
 });
 
+test('isNegative is true for numbers below zero', () => {
+  assert.equal(Value.isNegative(Value.number(-3)), true);
+  assert.equal(Value.isNegative(Value.number(-0.5)), true);
+});
+
+test('isNegative is false for zero, minus zero, positives, strings, booleans, errors and empty cells', () => {
+  assert.equal(Value.isNegative(Value.number(0)), false);
+  assert.equal(Value.isNegative({ type: 'number', value: -0 }), false);
+  assert.equal(Value.isNegative(Value.number(5)), false);
+  assert.equal(Value.isNegative(Value.string('-abc')), false);
+  assert.equal(Value.isNegative(Value.bool(true)), false);
+  assert.equal(Value.isNegative(Value.bool(false)), false);
+  assert.equal(Value.isNegative(Value.ERR_DIV0), false);
+  assert.equal(Value.isNegative(Value.EMPTY), false);
+});
+
 test('isError tells error values apart', () => {
   assert.equal(Value.isError(Value.ERR_NAME), true);
   assert.equal(Value.isError(Value.number(1)), false);
