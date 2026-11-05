@@ -20,7 +20,7 @@
 | 번호 | 이름 | 책임 | 의존 | 맡는 성공 기준 |
 |---|---|---|---|---|
 | C1 | Address (`src/address.js`) | 칸 주소 해석과 만들기. `A1` ↔ `{col,row}`, 대소문자 무시, `$` 절대 표시, 범위 정규화(`B5:A1` → `A1:B5`), 표 밖 판정(`valid`), 범위 안 주소 나열. | 없음 | AC11, AC13, AC16 |
-| C2 | Value (`src/value.js`) | 원문 해석(G2: 숫자·문자열·수식·빈 칸), 칸 값 모양과 오류 값 상수(`ERR_DIV0` 등 여섯 개), 숫자·참/거짓·문자열 바꾸기(G5·G7), 보이는 글자 만들기(G10 유효숫자 15자리, `TRUE`/`FALSE`). | 없음 | AC5, AC13, AC21 |
+| C2 | Value (`src/value.js`) | 원문 해석(G2: 숫자·문자열·수식·빈 칸), 칸 값 모양과 오류 값 상수(`ERR_DIV0` 등 여섯 개), 숫자·참/거짓·문자열 바꾸기(G5·G7), 보이는 글자 만들기(G10 유효숫자 15자리, `TRUE`/`FALSE`), 정렬 종류, 음수 판정 `isNegative`(G20, D15). | 없음 | AC5, AC13, AC21, AC23 |
 | C3 | Functions (`src/functions.js`) | SUM, AVERAGE, MIN, MAX, COUNT, IF, ROUND, ABS 를 G8 대로 계산. 이름 대소문자 무시, 없는 이름은 `#NAME?`, 인자 수 틀림은 `#VALUE!`. | C2 | AC12, AC13 |
 | C4 | Formula (`src/formula.js`) | 수식 토큰 나누기, 구문 분석(AST, G6 우선순위), 참조 목록 뽑기, 계산(칸 값은 넘겨받은 읽기 함수로 얻음), 참조 옮기기(`shift`). | C1, C2, C3 | AC9, AC10, AC11, AC13, AC16 |
 | C5 | Sheet (`src/sheet.js`) | 칸 원문·값 저장, 의존 그래프(정방향·역방향), 바뀐 칸에 기대는 칸만 순서대로 다시 계산, 순환 찾기(`#CIRC!`), 계산 횟수 세기, 전체 다시 계산(불러오기 뒤). | C1, C2, C4 | AC8, AC11, AC14, AC15, AC19 |
@@ -29,8 +29,8 @@
 | C8 | Clipboard (`src/clipboard.js`) | 고른 범위의 원문 기억, 붙일 자리 계산(G13): 활성 칸 기준 같은 크기, 표 밖 버림, 수식 참조는 C4 `shift` 로 옮김. | C1, C4 | AC16, AC17 |
 | C9 | Storage (`src/storage.js`) | 저장 형식 `{"version":1,"cells":{...}}` 직렬화·복원(G15). 저장소 객체를 인자로 받는다. 복원은 저장된 값을 경계에서 검증한다: `getItem` 이 예외를 내거나 값이 없거나 JSON 으로 읽히지 않거나, 읽은 값이 일반 객체가 아니거나 `version` 이 1 이 아니거나 `cells` 가 일반 객체(배열·`null` 아님)가 아니면 빈 표(`{}`)를 돌려준다. `cells` 안에서는 값이 문자열이 아니거나 빈 문자열인 칸, 표 안의 주소가 아닌 키를 버리고, 주소 키는 대문자로 정규화한다(`"a1"` → `A1`). 그래서 C5 `loadAll` 에는 늘 `{ 대문자 주소: 비지 않은 문자열 }` 만 들어간다. | C1 | AC19 |
 | C10 | Csv (`src/csv.js`) | 보이는 값으로 CSV 글자 만들기(G16): A1 부터 값이 있는 마지막 행·열까지, 쉼표, CRLF, 따옴표 감싸기, BOM. | C1 | AC20 |
-| C11 | App (`src/app.js`) | DOM 그리기(머리글·2600칸·이름 칸·수식 입력줄·편집 상자·CSV 단추), 마우스·키 이벤트를 규칙 모듈 호출로 잇기, 고치기 상태(G12), 바뀐 칸만 화면 갱신, localStorage 와 Blob 내려받기 연결. 규칙은 두지 않는다. | C1, C2, C5, C6, C7, C8, C9, C10 | AC1, AC2, AC3, AC4, AC6, AC7, AC8, AC15, AC17, AC18, AC19, AC20, AC21 |
-| C12 | Page (`index.html`, `style.css`) | 페이지 뼈대와 고정 스크립트 순서, 표·수식 입력줄 모양, 숫자 오른쪽·문자열 왼쪽 정렬 클래스. 외부 요청 없음. | C11 | AC1, AC21, AC22 |
+| C11 | App (`src/app.js`) | DOM 그리기(머리글·2600칸·이름 칸·수식 입력줄·편집 상자·CSV 단추), 마우스·키 이벤트를 규칙 모듈 호출로 잇기, 고치기 상태(G12), 바뀐 칸만 화면 갱신, localStorage 와 Blob 내려받기 연결, 칸의 `negative` 클래스 붙이고 떼기(D16). 규칙은 두지 않는다. | C1, C2, C5, C6, C7, C8, C9, C10 | AC1, AC2, AC3, AC4, AC6, AC7, AC8, AC15, AC17, AC18, AC19, AC20, AC21, AC23 |
+| C12 | Page (`index.html`, `style.css`) | 페이지 뼈대와 고정 스크립트 순서, 표·수식 입력줄 모양, 숫자 오른쪽·문자열 왼쪽 정렬 클래스, 음수 칸 빨간 글자 `.negative`(D17). 외부 요청 없음. | C11 | AC1, AC21, AC22, AC23 |
 
 테스트 도구(`package.json`, `playwright.config.js`, `tests/`, `e2e/`)는 앱 구성 요소가 아니므로 표에 넣지 않고 D12 로 정한다.
 
@@ -118,3 +118,74 @@ Edge list (complete):
 | Q4 | 참/거짓 칸과 오류 값 칸의 정렬은 G10 이 정하지 않았다. 이 설계는 둘 다 왼쪽으로 둔다(D4). 엑셀처럼 가운데로 둘 것인가? |
 | Q5 | 수식이 아닌 칸에 사용자가 `#REF!` 처럼 오류 글자를 직접 치면 문자열로 둔다(G2). 오류 값으로 읽어야 하는가? |
 | Q6 | SUM·AVERAGE·MIN·MAX·COUNT 에 칸 하나를 참조로 준 인자(`=SUM(A1,A3)`)는 G8 의 "직접 준 인자" 가 아니라 범위처럼 보고, 그 칸의 문자열·빈 칸·참/거짓을 건너뛴다고 가정한다(엑셀과 같음, D8). 문자열 칸을 `#VALUE!` 로 해야 하는가? |
+
+## 변경: 음수 칸 글자를 빨간색으로 보인다
+
+### 개요
+
+`change.md` 의 요청이다. 칸의 값이 숫자이고 0보다 작으면 글자를 빨간색(`#c00`)으로 보인다. 원문이 숫자든 수식 결과든 같고, 0(`-0` 포함)·양수·문자열·참/거짓·오류·빈 칸은 지금처럼 둔다(SPEC G20, AC23). 판정 규칙은 C2 Value 의 순수 함수 `isNegative` 하나에 두고, C11 App 이 이미 있는 칸 갱신 경로(`renderCell`)에서 `negative` 클래스를 붙이고 떼며, C12 Page 의 CSS 가 색을 칠한다. 새 구성 요소와 새 의존은 없다. C5 Sheet·C9 Storage·C10 Csv 와 저장 형식·CSV 는 바뀌지 않는다.
+
+### 기존 코드 파악
+
+- `src/value.js` 는 칸 값(D3)을 받는 표시 규칙으로 `display(v)`, `align(v)` 를 이미 내보낸다(`align` 은 `v.type === 'number' ? 'right' : 'left'`). 새 규칙도 같은 꼴(칸 값 하나 → 결과)로 더하고 끝의 반환 객체에 넣는다.
+- `src/app.js` 의 `renderCell(addr)` 이 칸 글자와 정렬 클래스(`right`/`left`)를 고치는 유일한 곳이다. 부르는 곳은 두 군데다: 원문이 바뀐 뒤 C5 가 돌려준 "값이 바뀐 주소" 목록(`changed.forEach(renderCell)`, 확정·지우기·붙여 넣기·되돌리기·다시 하기가 모두 지난다)과, 열 때 `loadAll` 뒤 전체 칸. 그래서 다시 계산으로 부호가 바뀐 기대는 칸도 이 경로로 다시 그려진다.
+- `style.css` 는 `.grid td.right/.left`(정렬), `.grid td.selected`(배경만), `.grid td.active`(outline 만)를 쓴다. 칸 글자색을 정한 규칙은 없으므로 `negative` 색과 겹치지 않는다. `#cell-editor` 는 칸과 다른 `<input>` 이라 칸 클래스의 영향을 받지 않는다.
+- 단위 테스트는 `tests/value.test.js` 에 `align` 시험이 있고, e2e 는 `e2e/<기능>.spec.js` 꼴이다. SPEC 이 새 파일 `e2e/negative.spec.js` 를 정했다.
+
+### 구성 요소
+
+새 구성 요소는 없다. 이번 요청이 고치는 기존 구성 요소만 적는다(위 구성 요소 표의 해당 줄도 함께 고쳤다).
+
+| 번호 | 이름 | 책임 | 의존 | 맡는 성공 기준 |
+|---|---|---|---|---|
+| C2 | Value (`src/value.js`) | 음수 판정 `Value.isNegative(v)` 를 더한다(D15). | 없음 | AC23 |
+| C11 | App (`src/app.js`) | `renderCell` 에서 `negative` 클래스를 `isNegative` 결과대로 붙이고 뗀다(D16). | C1, C2, C5, C6, C7, C8, C9, C10 | AC23 |
+| C12 | Page (`style.css`) | `.grid td.negative { color: #c00; }` 를 더한다(D17). | C11 | AC23 |
+
+### 아키텍처 다이어그램
+
+의존은 바뀌지 않는다. 이번 요청이 지나는 길만 그린다.
+
+```text
+Arrow "A --> B" or a line ending in "v" means A depends on B.
+Only the path touched by this change is drawn; all other
+edges are unchanged (see the complete edge list above).
+
+L5   [C12 Page]      style: .grid td.negative { color: #c00 }
+         |
+         v
+L4   [C11 App]       renderCell: toggle 'negative'
+         |
+         v
+L0   [C2 Value]      isNegative(v)
+
+Edge list (this change):
+  C12 --> C11
+  C11 --> C2
+  C2  --> (none)
+```
+
+### 아키텍처 결정
+
+| 번호 | 결정 | 이유 |
+|---|---|---|
+| D15 | C2 Value API: `Value.isNegative(v)` → `v.type === 'number' && v.value < 0`. 칸 값(D3)을 받고 보이는 글자는 보지 않는다. `-0 < 0` 은 거짓이므로 `-0` 은 따로 다루지 않아도 거짓이다. D6 이 `Infinity`/`NaN` 을 `#VALUE!` 로 바꾸므로 숫자 값에 `NaN` 은 오지 않는다. 문자열 `-abc`·참/거짓·오류·빈 칸은 종류에서 걸러져 거짓이다. 단위 테스트(`tests/value.test.js`)는 AC23 의 값 목록을 그대로 쓴다: 참 -3, -0.5 / 거짓 0, -0, 5, 문자열 `-abc`, TRUE·FALSE, `#DIV/0!`, 빈 칸. | G20 이 판정을 숫자 값으로 하라고 정했고, `align` 과 같은 자리에 두어 C11 에 규칙을 두지 않는다(D2). DOM 없이 커버리지 대상에 들어간다. |
+| D16 | C11 App 의 `renderCell` 은 정렬 클래스를 고친 바로 뒤에 `td.classList.toggle('negative', Value.isNegative(value))` 를 부른다. 새 갱신 경로는 만들지 않는다. 부호가 바뀌는 모든 경우(직접 고치기, 기대는 칸 다시 계산, 붙여 넣기, 되돌리기·다시 하기, 새로 고침 뒤 복원)는 이미 `renderCell` 을 지난다(기존 코드 파악). `active`·`selected` 클래스는 건드리지 않는다. | 클래스 붙이기와 떼기를 한 줄에서 해 값이 양수로 돌아올 때 클래스가 남는 일을 막는다. 바뀐 칸만 다시 그리는 D13 을 그대로 지킨다. |
+| D17 | C12 `style.css` 에 `.grid td.negative { color: #c00; }` 한 규칙을 더한다. `.selected`(배경)·`.active`(outline) 규칙은 색을 정하지 않으므로 활성·고른 칸에서도 빨간 글자가 남는다. `.cell-editor` 의 색은 바꾸지 않는다. e2e 는 `[data-cell].negative` 와 `getComputedStyle(칸).color === 'rgb(204, 0, 0)'` 을 함께 본다. | SPEC G20·AC23 이 색 값과 e2e 고리를 정했다. 인라인 스타일 대신 클래스로 두어 e2e 가 클래스와 계산된 색을 따로 확인할 수 있다. |
+| D18 | e2e `e2e/negative.spec.js` 는 기존 e2e 와 같이 file:// 로 열고 localStorage 를 비운 뒤(D12) AC23 의 칸 값을 넣고 확인한다: A1~A7 의 클래스와 색, B1=`=A4-10` 이 빨갛다가 A4=`20` 뒤 빨갛지 않음(다시 계산 경로), A1=`3` 으로 고친 뒤 빨갛지 않음(클래스 떼기). | AC23 의 확인 방법을 그대로 옮긴다. |
+
+### 위험
+
+| 번호 | 위험 | 영향 | 대응 |
+|---|---|---|---|
+| R9 | 앞으로 `renderCell` 을 거치지 않고 칸 글자를 고치는 경로가 생기면 `negative` 클래스가 값과 어긋난다(C11, D16). | 하 | 지금은 모든 경로가 `renderCell` 을 지난다. e2e 에 다시 계산(B1)과 고쳐서 양수로 바꾸기(A1)를 넣어 어긋남을 잡는다(D18). |
+| R10 | 브라우저가 `#c00` 을 다른 꼴로 계산해 e2e 의 `rgb(204, 0, 0)` 비교가 틀릴 수 있다(C12, D17). | 하 | Chromium 은 `getComputedStyle().color` 를 `rgb(r, g, b)` 꼴로 돌려준다. 다르면 e2e 실패 메시지로 바로 드러난다. |
+| R11 | 아주 작은 음수(`=-1E-20`)도 빨갛게 보인다. 판정을 값으로 하기 때문이다(C2, D15). | 하 | SPEC Q10 이 이 동작을 정했다. 유효숫자 15자리 표시(D4)는 0이 아닌 수를 `0` 으로 보이지 않으므로 빨간 `0` 은 생기지 않는다. |
+
+### 열린 질문
+
+새로 생긴 설계 질문은 없다. 색 값과 아주 작은 음수 처리는 SPEC 의 Q9·Q10 에 있고, 이 설계는 SPEC 의 가정(`#c00`, 값으로 판정)을 따른다.
+
+| 번호 | 질문 |
+|---|---|
+| Q7 | 없음. SPEC Q9·Q10 의 답이 바뀌면 D15·D17 만 고치면 된다. |
